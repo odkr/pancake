@@ -1716,6 +1716,7 @@ if not pandoc.types or PANDOC_VERSION < {2, 15} then
     elem_clone = type_check('table')(
         function (elem)
             if elem.clone then return elem:clone() end
+            assert(elem_type(elem) == 'Pandoc', 'expected a Pandoc document.')
             return update({}, elem)
         end
     )
