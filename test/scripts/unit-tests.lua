@@ -395,11 +395,11 @@ function test_protect ()
     assert_true(ok)
 end
 
--- luacheck: ignore test_jeopardise
-function test_jeopardise ()
-    local panic = M.jeopardise(function () error 'foo' end)
-    local fail = M.jeopardise(function () return nil, 'foo' end)
-    local succ = M.jeopardise(function () return true end)
+-- luacheck: ignore test_unprotect
+function test_unprotect ()
+    local panic = M.unprotect(function () error 'foo' end)
+    local fail = M.unprotect(function () return nil, 'foo' end)
+    local succ = M.unprotect(function () return true end)
 
     assert_error_msg_matches('.-%f[%a]foo$', panic)
     assert_error_msg_matches('.-%f[%a]foo$', fail)
@@ -570,26 +570,24 @@ end
 -- luacheck: ignore test_tabulate
 function test_tabulate ()
     local function stateless_iter (n)
-        local i = n
+        local i = 0
         return function ()
-            if i > 3 then return end
+            if i >= n then return end
             i = i + 1
             return i
         end
     end
 
-    local tests = {
-        [stateless_iter(0)] = {},
-        [stateless_iter(1)] = {1},
-        [stateless_iter(3)] = {1, 2, 3},
-        [pairs{}] = {},
-        [pairs{a = true}] = {'a'},
-        [pairs{a = true, b = true, c = true}] = {'a', 'b', 'c'},
-        [function () end] = {}
-    }
-
-    for k, v in ipairs(tests) do
-        assert_items_equals(table.pack(k), v)
+    for input, output in pairs {
+        [{stateless_iter(0)}] = {},
+        [{stateless_iter(1)}] = {1},
+        [{stateless_iter(3)}] = {1, 2, 3},
+        [{next, {}}] = {},
+        [{next, {a = true}}] = {'a'},
+        [{next, {a = true, b = true, c = true}}] = {'a', 'b', 'c'},
+        [{function () end}] = {}
+    } do
+        assert_items_equals(M.tabulate(unpack(input)), output)
     end
 end
 
@@ -648,23 +646,23 @@ function test_split ()
     end
 
     for input, output in pairs{
-        [{'string', '%s*:%s*'}] = {'string', n = 1},
-        [{'key: value:', '%s*:%s*'}] = {'key', 'value', '', n = 3},
-        [{'val, val, val', ',%s*'}] = {'val', 'val', 'val', n = 3},
-        [{', val , val', '%s*,%s*'}] = {'', 'val', 'val', n = 3},
-        [{'key: value', ': '}] = {'key', 'value', n = 2},
-        [{'key: value:x', '%s*:%s*', 2}] = {'key', 'value:x', n = 2},
-        [{'val, val, val', ',%s*', 2}] = {'val', 'val, val', n = 2},
+        [{'string', '%s*:%s*'}] = {'string'},
+        [{'key: value:', '%s*:%s*'}] = {'key', 'value', ''},
+        [{'val, val, val', ',%s*'}] = {'val', 'val', 'val'},
+        [{', val , val', '%s*,%s*'}] = {'', 'val', 'val'},
+        [{'key: value', ': '}] = {'key', 'value'},
+        [{'key: value:x', '%s*:%s*', 2}] = {'key', 'value:x'},
+        [{'val, val, val', ',%s*', 2}] = {'val', 'val, val'},
         [{'CamelCaseTest', '%u', nil, 'l'}] =
-            {'', 'Camel', 'Case', 'Test', n = 4},
+            {'', 'Camel', 'Case', 'Test'},
         [{'CamelCaseTest', '%u', nil, 'r'}] =
-            {'C', 'amelC', 'aseT', 'est', n = 4},
+            {'C', 'amelC', 'aseT', 'est'},
         [{'CamelCaseTest', '%u', 2, 'l'}] =
-            {'', 'CamelCaseTest', n = 2},
+            {'', 'CamelCaseTest'},
         [{'CamelCaseTest', '%u', 2, 'r'}] =
-            {'C', 'amelCaseTest', n = 2}
+            {'C', 'amelCaseTest'}
     } do
-        assert_items_equals(pack(M.tabulate(M.split(unpack(input)))), output)
+        assert_items_equals(M.tabulate(M.split(unpack(input))), output)
     end
 end
 

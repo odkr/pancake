@@ -458,7 +458,7 @@ sorted = type_check('table', '?function', '?boolean')(
             if raw == nil then raw = mt.__pairs == sorted end
         end
         local ks
-        if raw then ks = pack(tabulate(next, tab))
+        if raw then ks = tabulate(next, tab)
                else ks = keys(tab)
         end
         sort(ks, func)
@@ -478,11 +478,11 @@ sorted = type_check('table', '?function', '?boolean')(
 --  the same arguments as @{next}.
 -- @tab[opt] tab A table to iterate over.
 -- @param[opt] idx An index to start at.
--- @return The values returned by the iterator.
+-- @treturn tab The values returned by the iterator.
 --
 -- @usage
 -- > tab = {a = true, b = true, c = true}
--- > tabulate(next, tab)
+-- > unpack(tabulate(next, tab))
 -- a    b    c
 --
 -- @function tabulate
@@ -494,7 +494,7 @@ tabulate = type_check('function')(
             n = n + 1
             vals[n] = v
         end
-        return unpack(vals)
+        return vals
     end
 )
 
@@ -723,7 +723,7 @@ do
         -- luacheck: ignore assert msgh
         local function msgh (err) return format('${%s}: %s', exp, err) end
         local assert = asserter(nil, msgh)
-        local path, pipe = tabulate(split(exp, '|', 2))
+        local path, pipe = unpack(tabulate(split(exp, '%s*|%s*', 2)))
         assert(not seen[path], 'cycle in lookup.')
         seen[path] = true
         local v = assert(lookup(vars, path))
@@ -804,32 +804,41 @@ do
     --
     -- The expression as a whole must evaluate either to a string or a number.
     --
-    -- Variables can be given as a table (e.g., `{foo = 'bar'}`) or a function
-    -- (e.g., `function (k) if k == 'foo' then return bar end end`). If
-    -- they are given as a function, multi-dimensional lookups ('${foo.bar}'),
-    -- pipes ('${foo|bar'), and recursive substitution are *not* supported.
-    -- The given function is run in protected mode.
+    -- Variables can also be looked using a function. The function is run
+    -- in protected mode. If it throws an error, `vars_sub` will return
+    -- `nil` and the error object thrown by the function. Note, this mode
+    -- does *not* support multi-dimensional lookups (`${foo.bar}`),
+    -- pipes (`${foo|bar}`), or recursive substitution.
+    --
+    --    > vars_sub(
+    --    >     '${foo} is bar.',
+    --    >     function (key)
+    --    >         if key == 'foo' then return 'bar' end
+    --    >     end
+    --    > )
+    --    bar is bar.
     --
     -- @string str A string.
-    -- @tparam func|tab map A mapping of variable names to values.
+    -- @tparam func|tab vars A mapping of variable names to values.
     -- @treturn[1] string A transformed string.
     -- @treturn[2] nil `nil` if an error occurred.
     -- @treturn[2] string An error message.
     --
     -- @function vars_sub
     vars_sub = type_check('string', 'function|table', '?table')(protect(
-        function (str, mapping, _seen)
+        function (str, vars, _seen)
             if not _seen then _seen = {} end
             local repl
-            local t = type(mapping)
+            local t = type(vars)
             if t == 'table' then
-                repl = function (...) return expand(_seen, mapping, ...) end
+                repl = function (...) return expand(_seen, vars, ...) end
             elseif t == 'function' then
-                repl = function (...) return assert(mapping(...)) end
+                repl = function (...) return assert(vars(...)) end
             else
                 error(format('expected function or table, got %s.', t), 2)
             end
-            return str:gsub('%f[%$]%${(.-)}', repl):gsub('%$(%$*)', '%1'), nil
+            return str:gsub('%f[%$]%${%s*(.-)%s*}', repl)
+                      :gsub('%$(%$*)', '%1'), nil
         end
     ))
 end

@@ -104,7 +104,7 @@
 	<td class="summary">Decorator that runs a function in protected mode.</td>
 	</tr>
 	<tr>
-	<td class="name" nowrap><a href="#jeopardise">jeopardise (func)</a></td>
+	<td class="name" nowrap><a href="#unprotect">unprotect (func)</a></td>
 	<td class="summary">Decorator that raises an error if a function returns a falsy value.</td>
 	</tr>
 </table>
@@ -127,7 +127,7 @@
 	<td class="summary">Iterate over the key-value pairs of a table in a given order.</td>
 	</tr>
 	<tr>
-	<td class="name" nowrap><a href="#tabulate">tabulate (iter[, tab[, key]])</a></td>
+	<td class="name" nowrap><a href="#tabulate">tabulate (iter[, tab[, idx]])</a></td>
 	<td class="summary">Tabulate the values that an iterator returns.</td>
 	</tr>
 	<tr>
@@ -141,10 +141,6 @@
 	<td class="name" nowrap><a href="#split">split (str, pattern[, max[, incl]])</a></td>
 	<td class="summary">Iterate over substrings of a string.</td>
 	</tr>
-	<tr>
-	<td class="name" nowrap><a href="#trim">trim (str)</a></td>
-	<td class="summary">Remove leading and trailing whitespace.</td>
-	</tr>
 </table>
 <h2><a href="#Variables">Variables </a></h2>
 <table class="function_list">
@@ -153,7 +149,7 @@
 	<td class="summary">Get a copy of a function&rsquo;s variables.</td>
 	</tr>
 	<tr>
-	<td class="name" nowrap><a href="#vars_sub">vars_sub (str, map)</a></td>
+	<td class="name" nowrap><a href="#vars_sub">vars_sub (str, vars)</a></td>
 	<td class="summary">Substitute variables in strings.</td>
 	</tr>
 	<tr>
@@ -279,7 +275,7 @@
 <table class="function_list">
 	<tr>
 	<td class="name" nowrap><a href="#Options">Options</a></td>
-	<td class="summary">An option parser.</td>
+	<td class="summary">An option list.</td>
 	</tr>
 	<tr>
 	<td class="name" nowrap><a href="#Options:new">Options:new (...)</a></td>
@@ -287,7 +283,7 @@
 	</tr>
 	<tr>
 	<td class="name" nowrap><a href="#Options:add">Options:add (...)</a></td>
-	<td class="summary">Add an option to the parser.</td>
+	<td class="summary">Add an option to the list.</td>
 	</tr>
 	<tr>
 	<td class="name" nowrap><a href="#Options:parse">Options:parse (meta)</a></td>
@@ -582,7 +578,7 @@ stack traceback:
 
     <h3>See also:</h3>
     <ul>
-         <a href="index.html#jeopardise">jeopardise</a>
+         <a href="index.html#unprotect">unprotect</a>
     </ul>
 
     <h3>Usage:</h3>
@@ -597,8 +593,8 @@ foo
 
 </dd>
     <dt>
-    <a name = "jeopardise"></a>
-    <strong>jeopardise (func)</strong>
+    <a name = "unprotect"></a>
+    <strong>unprotect (func)</strong>
     </dt>
     <dd>
     Decorator that raises an error if a function returns a falsy value.
@@ -632,10 +628,10 @@ foo
 
     <h3>Usage:</h3>
     <ul>
-        <pre class="example">&gt; foo = jeopardise(<span class="keyword">function</span> () <span class="keyword">return</span> <span class="string">'foo'</span> <span class="keyword">end</span>)
+        <pre class="example">&gt; foo = unprotect(<span class="keyword">function</span> () <span class="keyword">return</span> <span class="string">'foo'</span> <span class="keyword">end</span>)
 &gt; foo()
 foo
-&gt; boo = jeopardise(<span class="keyword">function</span> () <span class="keyword">return</span> <span class="keyword">nil</span>, <span class="string">'boo.'</span> <span class="keyword">end</span>)
+&gt; boo = unprotect(<span class="keyword">function</span> () <span class="keyword">return</span> <span class="keyword">nil</span>, <span class="string">'boo.'</span> <span class="keyword">end</span>)
 &gt; boo()
 boo.
 stack traceback:
@@ -860,7 +856,7 @@ a    <span class="number">1</span></pre>
 </dd>
     <dt>
     <a name = "tabulate"></a>
-    <strong>tabulate (iter[, tab[, key]])</strong>
+    <strong>tabulate (iter[, tab[, idx]])</strong>
     </dt>
     <dd>
     Tabulate the values that an iterator returns.
@@ -883,7 +879,7 @@ a    <span class="number">1</span></pre>
          A table to iterate over.
          (<em>optional</em>)
         </li>
-        <li><span class="parameter">key</span>
+        <li><span class="parameter">idx</span>
          An index to start at.
          (<em>optional</em>)
         </li>
@@ -892,6 +888,7 @@ a    <span class="number">1</span></pre>
     <h3>Returns:</h3>
     <ol>
 
+           <span class="types"><span class="type">tab</span></span>
         The values returned by the iterator.
     </ol>
 
@@ -900,7 +897,7 @@ a    <span class="number">1</span></pre>
     <h3>Usage:</h3>
     <ul>
         <pre class="example">&gt; tab = {a = <span class="keyword">true</span>, b = <span class="keyword">true</span>, c = <span class="keyword">true</span>}
-&gt; tabulate(<span class="global">next</span>, tab)
+&gt; <span class="global">unpack</span>(tabulate(<span class="global">next</span>, tab))
 a    b    c</pre>
     </ul>
 
@@ -1016,38 +1013,6 @@ a    b    c</pre>
     </ul>
 
 </dd>
-    <dt>
-    <a name = "trim"></a>
-    <strong>trim (str)</strong>
-    </dt>
-    <dd>
-    Remove leading and trailing whitespace.
-
-    </ul>
-    </ul>
-    </ul>
-    </ul>
-    </ul>
-
-    <h3>Parameters:</h3>
-    <ul>
-        <li><span class="parameter">str</span>
-            <span class="types"><a class="type" href="https://www.lua.org/manual/5.1/manual.html#5.4">string</a></span>
-         A string.
-        </li>
-    </ul>
-
-    <h3>Returns:</h3>
-    <ol>
-
-           <span class="types"><a class="type" href="https://www.lua.org/manual/5.1/manual.html#5.4">string</a></span>
-        A trimmed string.
-    </ol>
-
-
-
-
-</dd>
 </dl>
     <h2 class="section-header "><a name="Variables"></a>Variables </h2>
 
@@ -1107,10 +1072,10 @@ foo</pre>
 </dd>
     <dt>
     <a name = "vars_sub"></a>
-    <strong>vars_sub (str, map)</strong>
+    <strong>vars_sub (str, vars)</strong>
     </dt>
     <dd>
-    Substitute variables in strings.</p>
+    <p>Substitute variables in strings.</p>
 
 <p> If a string of characters is placed within braces (&lsquo;{&hellip;}&rsquo;) and the
  opening brace (&lsquo;{&rsquo;) immediately follows a single dollar (&lsquo;$&rsquo;) sign,
@@ -1180,11 +1145,20 @@ bar is bar.
 
 <p> The expression as a whole must evaluate either to a string or a number.</p>
 
-<p> Variables can be given as a table (e.g., <code>{foo = 'bar'}</code>) or a function
- (e.g., <code>function (k) if k == 'foo' then return bar end end</code>). If
- they are given as a function, multi-dimensional lookups (&lsquo;${foo.bar}&rsquo;),
- pipes (&lsquo;${foo|bar&rsquo;), and recursive substitution are <em>not</em> supported.
- The given function is run in protected mode.
+<p> Variables can also be looked using a function. The function is run
+ in protected mode. If it throws an error, <code>vars_sub</code> will return
+ <code>nil</code> and the error object thrown by the function. Note, this mode
+ does <em>not</em> support multi-dimensional lookups (<code>${foo.bar}</code>),
+ pipes (<code>${foo|bar}</code>), or recursive substitution.</p>
+
+<pre><code>&gt; vars_sub(
+&gt;     '${foo} is bar.',
+&gt;     function (key)
+&gt;         if key == 'foo' then return 'bar' end
+&gt;     end
+&gt; )
+bar is bar.
+</code></pre>
 
     </ul>
     </ul>
@@ -1198,7 +1172,7 @@ bar is bar.
             <span class="types"><a class="type" href="https://www.lua.org/manual/5.1/manual.html#5.4">string</a></span>
          A string.
         </li>
-        <li><span class="parameter">map</span>
+        <li><span class="parameter">vars</span>
             <span class="types"><span class="type">func</span> or <span class="type">tab</span></span>
          A mapping of variable names to values.
         </li>
@@ -2389,7 +2363,7 @@ foo    bar</pre>
     <strong>Options</strong>
     </dt>
     <dd>
-    An option parser.
+    An option list.
 
     </ul>
     <h3>Prototype:</h3>
@@ -2457,7 +2431,7 @@ parser:add{name = 'foo'}
     <strong>Options:add (...)</strong>
     </dt>
     <dd>
-    Add an option to the parser.
+    Add an option to the list.
 
     </ul>
     </ul>
@@ -2697,7 +2671,7 @@ number</pre>
 </div> <!-- id="main" -->
 <div id="about">
 <i>generated by <a href="http://github.com/stevedonovan/LDoc">LDoc 1.4.6</a></i>
-<i style="float:right;">Last updated 2022-04-04 20:06:41 </i>
+<i style="float:right;">Last updated 2022-04-04 22:20:45 </i>
 </div> <!-- id="about" -->
 </div> <!-- id="container" -->
 </body>
