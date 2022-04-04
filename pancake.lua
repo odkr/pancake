@@ -271,7 +271,7 @@ asserter = type_check('?function', '?function')(
 -- nil    bar!
 --
 -- @function protect
--- @see jeopardise
+-- @see unprotect
 protect = type_check('function')(
     function (func)
         return function (...)
@@ -288,10 +288,10 @@ protect = type_check('function')(
 -- @treturn func A function that throws an error on failures.
 --
 -- @usage
--- > foo = jeopardise(function () return 'foo' end)
+-- > foo = unprotect(function () return 'foo' end)
 -- > foo()
 -- foo
--- > boo = jeopardise(function () return nil, 'boo.' end)
+-- > boo = unprotect(function () return nil, 'boo.' end)
 -- > boo()
 -- boo.
 -- stack traceback:
@@ -300,10 +300,9 @@ protect = type_check('function')(
 --         (...tail calls...)
 --         [C]: in ?
 --
--- @function jeopardise
+-- @function unprotect
 -- @see protect
--- @fixme Rename to `unprotect` or `deprotect`.
-jeopardise = type_check('function')(
+unprotect = type_check('function')(
     function (func)
         return function (...)
             local results = pack(func(...))
@@ -585,10 +584,10 @@ walk = type_check('*', 'function', '?table')(
 -- "Case"
 --
 -- @function split
--- @fixme Deprecate. Should be replaced by Lua pattern matching functions.
+-- @todo Add a flag to disable pattern matching?
 split = type_check('string', 'string', '?number', '?string')(
     function (str, pattern, max, incl)
-        -- Why wouldn't it? Check that @fixme.
+        -- @fixme Why wouldn't it? Check this.
         assert(not pattern:match '%f[%%]%%f', 'split does not support %f.')
         assert(not incl or incl == 'l' or incl == 'r', 'expecting "l" or "r".')
         local pos = 1
@@ -622,19 +621,6 @@ split = type_check('string', 'string', '?number', '?string')(
             n = n + 1
             return str:sub(ts, te)
         end
-    end
-)
-
---- Remove leading and trailing whitespace.
---
--- @string str A string.
--- @treturn string A trimmed string.
---
--- @function trim
--- @fixme Deprecate.
-trim = type_check('string')(
-    function (str)
-        return str:match '^%s*(.*%S)' or '', nil
     end
 )
 
@@ -1737,10 +1723,6 @@ else
                 local t = type(v)
                 if t == 'userdata' or t == 'table' then
                     if v.clone then clone[k] = v:clone()
-                               -- @fixme
-                               -- This used to be:
-                               --   else clone[k] = copy(v)
-                               -- But at first glance, this seems unnecessary.
                                else clone[k] = update({}, v)
                     end
                 end
