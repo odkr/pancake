@@ -26,6 +26,7 @@ PANDOC_ARGS	?= --quiet
 # ======
 
 SCRIPT		?= pancake.lua
+UNIT_TESTS	?= $(SCPT_DIR)/unit-tests.lua 
 
 
 # TESTS
@@ -40,10 +41,10 @@ tempdir:
 test: tempdir
 	@[ -e share/lua/*/luaunit.lua ] || luarocks install --tree=. luaunit
 	@"$(PANDOC)" $(PANDOC_ARGS) --from markdown --to plain \
-	             --lua-filter="$(SCPT_DIR)/unit-tests.lua" \
+	             --lua-filter=$(UNIT_TESTS) \
 		     --metadata test="$(TEST)" /dev/null
 lint:
-	@luacheck --quiet $(SCRIPT) || [ $$? -eq 127 ]
+	@luacheck --quiet $(UNIT_TESTS) $(SCRIPT) || [ $$? -eq 127 ]
 
 docs: docs/index.html
 

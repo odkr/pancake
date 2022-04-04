@@ -74,6 +74,8 @@ local pack = table.pack
 local unpack = table.unpack
 
 local List = pandoc.List
+local MetaInlines = pandoc.MetaInlines
+local MetaMap = pandoc.MetaMap
 local Null = pandoc.Null
 local Pandoc = pandoc.Pandoc
 local Para = pandoc.Para
@@ -289,10 +291,12 @@ do
         end
     end
 
+    -- luacheck: ignore test_type_match
     test_type_match = make_type_match_test(function(val, td)
         return M.type_match(val, td)
     end)
 
+    -- luacheck: ignore test_type_check
     function test_type_check ()
         local type_check = M.type_check
 
@@ -346,11 +350,68 @@ end
 
 -- Errors.
 
--- @fixme.
+-- luacheck: ignore test_asserter
+function test_asserter ()
+    -- luacheck: ignore assert
+    local assert = M.asserter()
+
+    assert_true(pcall(assert, true))
+    assert_error_msg_matches('^foo$', assert, false, 'foo')
+
+    local function msgh () return 'bar' end
+    assert = M.asserter(nil, msgh)
+    assert_true(pcall(assert, true))
+    assert_error_msg_matches('^bar$', assert, false, 'foo')
+
+    local var = false
+    local function fin () var = true end
+    assert = M.asserter(fin)
+    assert_true(pcall(assert, true))
+    assert_error_msg_matches('^foo$', assert, false, 'foo')
+    assert_true(var)
+
+    var = false
+    assert = M.asserter(fin, msgh)
+    assert_true(pcall(assert, true))
+    assert_error_msg_matches('^bar$', assert, false, 'foo')
+    assert_true(var)
+end
+
+-- luacheck: ignore test_protect
+function test_protect ()
+    local panic = M.protect(function () error 'foo' end)
+    local fail = M.protect(function () return nil, 'foo' end)
+    local succ = M.protect(function () return true end)
+
+    local ok, err
+    ok, err = panic()
+    assert_nil(ok)
+    assert_str_matches(err, '.-%f[%a]foo')
+    ok, err = fail()
+    assert_nil(ok)
+    assert_equals(err, 'foo')
+    ok, err = succ()
+    assert_nil(err)
+    assert_true(ok)
+end
+
+-- luacheck: ignore test_jeopardise
+function test_jeopardise ()
+    local panic = M.jeopardise(function () error 'foo' end)
+    local fail = M.jeopardise(function () return nil, 'foo' end)
+    local succ = M.jeopardise(function () return true end)
+
+    assert_error_msg_matches('.-%f[%a]foo$', panic)
+    assert_error_msg_matches('.-%f[%a]foo$', fail)
+    local ok, err = succ()
+    assert_nil(err)
+    assert_true(ok)
+end
 
 
 -- Tables.
 
+-- luacheck: ignore test_copy
 function test_copy ()
     local tab, cp
 
@@ -376,6 +437,7 @@ function test_copy ()
             return t
             end)(),
     } do
+        -- luacheck: ignore cp
         local cp = M.copy(val)
         assert_items_equals(cp, val)
     end
@@ -415,6 +477,7 @@ function test_copy ()
     assert_items_equals(cp, tab)
 end
 
+-- luacheck: ignore test_keys
 function test_keys ()
     for input, output in pairs{
         [{}] =        {keys = {},        n = 0},
@@ -439,6 +502,7 @@ function test_keys ()
     end
 end
 
+-- luacheck: ignore test_order
 function test_order ()
     for input, output in pairs{
         [{order = {3},    data = {1, 2, 3}}] = {3, 1, 2},
@@ -453,6 +517,7 @@ function test_order ()
     end
 end
 
+-- luacheck: ignore test_sorted
 function test_sorted ()
     local unsorted = {c=3, F=9, another=1}
     local order = {'F', 'another', 'c'}
@@ -463,7 +528,7 @@ function test_sorted ()
         assert_equals(v, unsorted[k])
     end
 
-    local i = 0
+    i = 0
     for k, v in M.sorted(unsorted, M.order(order)) do
         i = i + 1
         assert_equals(k, order[i])
@@ -502,6 +567,7 @@ function test_sorted ()
     lu.assert_not_nil(M.sorted, unsorted, true)
 end
 
+-- luacheck: ignore test_tabulate
 function test_tabulate ()
     local function stateless_iter (n)
         local i = n
@@ -523,10 +589,11 @@ function test_tabulate ()
     }
 
     for k, v in ipairs(tests) do
-        assert_items_equal(table.pack(k), v)
+        assert_items_equals(table.pack(k), v)
     end
 end
 
+-- luacheck: ignore test_update
 function test_update ()
     local tab = {foo = 'bar'}
     local other_tab = {bar = 'baz', baz = {}}
@@ -537,17 +604,14 @@ function test_update ()
     assert_equals(other_tab.baz[1], 'bam!')
 end
 
+-- luacheck: ignore test_walk
 function test_walk ()
     local cycle = {}
     cycle.cycle = cycle
 
-    for _, tab in ipairs{
-        {{}}, 1, ZOTXT_CSL, ZOTXT_JSON, ZOTXT_YAML, ZOTXT_META,
-        false, {['false']=1}, {{{[false]=true}, 0}}, 'string',
-        cycle
-    } do
-        assert_equals(M.walk(tab, id), tab)
-        assert_equals(M.walk(tab, nilify), tab)
+    for _, val in ipairs{{{}}, 0, false, {[false]=0}, 'string', cycle} do
+        assert_equals(M.walk(val, id), val)
+        assert_equals(M.walk(val, nilify), val)
     end
 
     local function inc (v)
@@ -574,6 +638,7 @@ end
 
 -- Strings.
 
+-- luacheck: ignore test_split
 function test_split ()
     for input, message in pairs{
         [{'string', '%f[%a]'}] = '.-%f[%a]split does not support %%f%.$',
@@ -603,6 +668,7 @@ function test_split ()
     end
 end
 
+-- luacheck: ignore test_trim
 function test_trim ()
     local ws = powerset{'\t', '\n', ' ', '\r'}
     for _, cs in pairs(ws) do
@@ -621,6 +687,7 @@ end
 
 -- Variables.
 
+-- luacheck: ignore test_vars_get
 function test_vars_get ()
     for level, message in pairs{
         [-1] = '.-%f[%a]level is not a positive number%.',
@@ -640,11 +707,13 @@ function test_vars_get ()
     foo()
 
     local function bar_rw ()
+        -- luacheck: ignore foo
         local foo = M.vars_get(3).foo
         assert_equals(foo.bar, 'bar')
         foo.bar = 'bam!'
     end
     local function foo_rw ()
+        -- luacheck: ignore foo
         local foo = {bar = 'bar'}
         bar_rw()
         assert_equals(foo.bar, 'bar')
@@ -652,6 +721,7 @@ function test_vars_get ()
     foo_rw()
 end
 
+-- luacheck: ignore test_vars_sub
 function test_vars_sub ()
     for input, message in pairs{
         [{'${a}', {a = '${b}', b = '${a}'}}] =
@@ -670,7 +740,7 @@ function test_vars_sub ()
             '.-%f[%$]${foo|bar.}: name ends with a dot%.',
         [{'${foo..bar}', {foo = {}}}] =
             '.-%f[%$]${foo..bar}: foo.: consecutive dots%.',
-        [{'${foo bar}', {}}] = 
+        [{'${foo bar}', {}}] =
             '.-%f[%$]${foo bar}: foo bar: illegal name%.',
         [{'${foo}', {}}] =
             '.-%f[%$]${foo}: foo: is undefined%.',
@@ -748,6 +818,7 @@ function test_vars_sub ()
     end
 end
 
+-- luacheck: ignore test_env_sub
 function test_env_sub ()
     for input, message in pairs{
         ['${}'] = '.-%f[%$]${}: variable name is the empty string%.',
@@ -772,6 +843,7 @@ end
 
 -- Metatables.
 
+-- luacheck: ignore test_ignore_case
 function test_ignore_case ()
     local tab = setmetatable({}, M.ignore_case)
 
@@ -805,6 +877,7 @@ end
 
 -- Prototypes.
 
+-- luacheck: ignore test_object_clone
 function test_object_clone ()
     local tab = {foo = 'yo'}
     local obj_mt = {foo = true, bar = {baz = true}}
@@ -849,6 +922,7 @@ function test_object_clone ()
     assert_equals(tostring(bar), 'baz')
 end
 
+-- luacheck: ignore test_object_new
 function test_object_new ()
     local args = {{foo = true}, {bar = false}}
     local a = M.Object:new(unpack(args))
@@ -857,6 +931,7 @@ function test_object_new ()
     assert_items_equals(getmetatable(a), getmetatable(b))
 end
 
+-- luacheck: ignore test_getterify
 function test_getterify ()
     local tab = {}
     local mt = {getters = {bar = function () return true end}}
@@ -888,8 +963,10 @@ function test_getterify ()
     assert_equals(bam.bar, 'Bam!')
 end
 
+
 -- File I/O.
 
+-- luacheck: ignore test_file_exists
 function test_file_exists ()
     assert_error_msg_matches('.-%f[%a]filename is the empty string.',
         M.file_exists, '')
@@ -899,6 +976,7 @@ function test_file_exists ()
     assert_nil(ok)
 end
 
+-- luacheck: ignore test_file_locate
 function test_file_locate ()
     assert_error_msg_matches('.-%f[%a]filename is the empty string.',
         M.file_locate, '')
@@ -917,6 +995,7 @@ function test_file_locate ()
     end
 end
 
+-- luacheck: ignore test_file_read
 function test_file_read ()
     assert_error_msg_matches('.-%f[%a]filename is the empty string.',
         M.file_read, '')
@@ -934,6 +1013,7 @@ function test_file_read ()
     assert_equals(str, 'This is a simple file.')
 end
 
+-- luacheck: ignore test_file_write
 function test_file_write ()
     local funcs = {[M.__file_write_legacy] = true, [M.file_write] = true}
     if pandoc.types and PANDOC_VERSION >= {2, 8} then
@@ -978,6 +1058,7 @@ function test_file_write ()
     end
 end
 
+-- luacheck: ignore test_tmp_fname
 function test_tmp_fname ()
     for input, msg in pairs {
         [{'', nil}] =
@@ -989,9 +1070,9 @@ function test_tmp_fname ()
     end
 
     for input, output in pairs{
-        [{nil, nil}] = '^pan%-%w%w%w%w%w%w$',
+        [{nil, nil}] = '^tmp%-%w%w%w%w%w%w$',
         [{nil, 'test_XXXXXXXXX'}] = '^test_%w%w%w%w%w%w%w%w%w$',
-        [{'/tmp', nil}] = '^/tmp' .. M.PATH_SEP .. 'pan%-%w%w%w%w%w%w$',
+        [{'/tmp', nil}] = '^/tmp' .. M.PATH_SEP .. 'tmp%-%w%w%w%w%w%w$',
         [{'/tmp', 'XXXXXXX'}] = '^/tmp' .. M.PATH_SEP .. '%w%w%w%w%w%w%w$'
     } do
         local fname = assert(M.tmp_fname(unpack(input)))
@@ -1007,6 +1088,7 @@ function test_tmp_fname ()
     end
 end
 
+-- luacheck: ignore test_with_tmp_file
 function test_with_tmp_file ()
     local remove = os.remove
     local tmp_fname
@@ -1058,6 +1140,7 @@ end
 
 -- Paths.
 
+-- luacheck: ignore test_path_is_abs
 function test_path_is_abs ()
     for input, output in pairs{
         [M.PATH_SEP]                  = true,
@@ -1073,6 +1156,7 @@ function test_path_is_abs ()
     end
 end
 
+-- luacheck: ignore test_path_join
 function test_path_join ()
     for input, output in pairs{
         [{'a', 'b'}] = 'a' .. M.PATH_SEP .. 'b',
@@ -1084,6 +1168,7 @@ function test_path_join ()
     end
 end
 
+-- luacheck: ignore test_path_make_abs
 if pandoc.types and PANDOC_VERSION >= {2, 12} then
     function test_path_make_abs ()
         assert_error_msg_matches('.-%f[%a]path is the empty string.',
@@ -1100,6 +1185,7 @@ if pandoc.types and PANDOC_VERSION >= {2, 12} then
     end
 end
 
+-- luacheck: ignore test_path_normalise
 function test_path_normalise ()
     assert_error_msg_matches('.-%f[%a]path is the empty string.',
         M.path_normalise, '')
@@ -1142,6 +1228,7 @@ function test_path_normalise ()
     end
 end
 
+-- luacheck: ignore test_path_prettify
 function test_path_prettify ()
     assert_error_msg_matches('.-%f[%a]path is the empty string.',
         M.path_prettify, '')
@@ -1172,6 +1259,7 @@ function test_path_prettify ()
     end
 end
 
+-- luacheck: ignore test_path_split
 function test_path_split ()
     assert_error_msg_matches('.-%f[%a]path is the empty string.',
         M.path_split, '')
@@ -1216,6 +1304,7 @@ function test_path_split ()
     end
 end
 
+-- luacheck: ignore test_project_dir
 function test_project_dir ()
     assert_equals(M.project_dir(), '/dev')
 end
@@ -1223,6 +1312,7 @@ end
 
 -- Elements.
 
+-- luacheck: ignore test_elem_clone
 function test_elem_clone ()
     assert_error_msg_matches(
         '.-%f[%a]expected a Pandoc document%.',
@@ -1239,6 +1329,7 @@ function test_elem_clone ()
     end
 end
 
+-- luacheck: ignore test_elem_type
 function test_elem_type ()
     for _, val in ipairs{true, 1, 'string', {}, function () end} do
         local ok, err = M.elem_type(val)
@@ -1266,6 +1357,7 @@ function test_elem_type ()
     end
 end
 
+-- luacheck: ignore test_elem_walk
 function test_elem_walk ()
     local id = {AstElement = id}
     local nilify = {AstElement = nilify}
@@ -1294,96 +1386,144 @@ function test_elem_walk ()
 end
 
 
+-- Options.
 
-----------------------------------------------------------------
-
-
-
-
+-- luacheck: ignore test_options_add
 function test_options_add ()
-    local options = M.Options:clone()
-    local add = options.add
+    local opts = M.Options()
 
-    local errors = {
-        {'.-%f[%a]argument 2: expected table or userdata, got nil%.', add, options},
-        {'.-%f[%a]argument 2: expected table or userdata, got nil%.', add, options, nil},
-        {'.-%f[%a]argument 2: expected table or userdata, got boolean%.', add, options, true},
-        {'.-%f[%a]argument 2: index name: expected string, got nil%.', add, options, {}},
-        {'.-%f[%a]argument 2: index parse: expected function or nil, got boolean%.', add, options, {name = 'n', parse = true}}
-    }
-
-    for _, v in ipairs(errors) do
-        lu.assert_error_msg_matches(unpack(v))
+    for pattern, input in pairs {
+        ['foo@bar!: cannot parse option type.'] =
+            {name = 'err_type_syntax', type = 'foo@bar!'},
+        ['int: no such option type.'] =
+            {name = 'err_type_syntax', type = 'int'},
+    } do
+        assert_error_msg_matches(pattern, opts.add, opts, input)
     end
 
-    lu.assert_true(pcall(add, options, {name = 'test'}))
+    opts:add{name = 'test'}
+    assert_equals(opts[1].name, 'test')
 end
 
-function test_options_parse ()
-    local meta = pandoc.MetaMap{
-        ['zotero-test'] = pandoc.MetaInlines{pandoc.Str 'test'},
-        ['zotero-unstr'] = pandoc.MetaMap{},
-        ['zotero-list'] = pandoc.MetaInlines{pandoc.Str 'test'},
-        ['zotero-num-list'] = 3,
-        ['zotero-higher-ord'] = pandoc.MetaInlines{pandoc.Str 'test'},
-        ['zotero-nil'] = 'not yet nil'
+do
+    local meta = MetaMap{
+        ['err-type-syntax'] = 'foo',
+        ['err-type-semantics'] = 'foo',
+        ['err-nan'] = MetaInlines{Str 'NaN'},
+        ['err-list-nan-1'] = List:new{MetaInlines{Str 'NaN'}},
+        ['err-list-nan-2'] = List:new{0, MetaInlines{Str 'NaN'}},
+        ['err-list-nan-3'] = MetaInlines{Str 'NaN'},
+        ['pre-err-nan'] = MetaInlines{Str 'NaN'},
+        ['pre-err-list-nan-1'] = List:new{MetaInlines{Str 'NaN'}},
+        ['pre-err-list-nan-2'] = List:new{0, MetaInlines{Str 'NaN'}},
+        ['pre-err-list-nan-3'] = MetaInlines{Str 'NaN'},
+        ['num'] = 3,
+        ['add'] = '0',
+        ['num-str-1'] = '3',
+        ['pre-num-str-2'] = '3',
+        ['list-num-1'] = List:new{MetaInlines{Str '1'}, MetaInlines{Str '2'}},
+        ['list-num-2'] = MetaInlines{Str '1'},
+        ['str'] =  MetaInlines{Str '1'},
+        ['list-str-1'] =  List:new{MetaInlines{Str '1'}, MetaInlines{Str '2'}},
+        ['list-str-2'] =  MetaInlines{Str '1'},
+        ['list-list-1'] = List:new{List:new{MetaInlines{Str '1'}}},
+        ['list-list-2'] = List:new{MetaInlines{Str '1'}},
+        ['list-list-3'] = MetaInlines{Str '1'}
     }
 
-    local erroneous = {
-        [{prefix = 'zotero', name = 'unstr'}] =
-            '.-%f[%a]zotero%-unstr: not a string or empty%.',
-    }
+    local function make_options_parse_test (func)
+        return function ()
+            for pattern, input in pairs {
+                ['foo@bar!: cannot parse option type.'] =
+                    {name = 'err_type_syntax', type = 'foo@bar!'},
+                ['int: no such option type.'] =
+                    {name = 'err_type_syntax', type = 'int'},
+            } do
+                assert_error_msg_matches(pattern, func, {input}, meta)
+            end
 
-    for k, v in pairs(erroneous) do
-        local parser = M.Options:clone()
-        parser:add(k)
-        local ok, err = parser:parse(meta)
-        lu.assert_nil(ok)
-        lu.assert_str_matches(err, v)
+            for msg, input in pairs {
+                ['err-nan: not a number.'] =
+                    {name = 'err_nan', type = 'number'},
+                ['err-list-nan-1: item no. 1: not a number.'] =
+                    {name = 'err_list_nan-1', type = 'list<number>'},
+                ['err-list-nan-2: item no. 2: not a number.'] =
+                    {name = 'err_list_nan-2', type = 'list<number>'},
+                ['err-list-nan-3: not a number.'] =
+                    {name = 'err-list-nan-3', type = 'number'},
+                ['pre-err-nan: not a number.'] =
+                    {prefix = 'pre', name = 'err_nan', type = 'number'},
+                ['pre-err-list-nan-3: not a number.'] =
+                    {prefix = 'pre', name = 'err-list-nan-3', type = 'number'},
+                ['num: foo'] = {
+                    name = 'num', type = 'number', parse = function ()
+                        return nil, 'foo'
+                    end
+                }
+            } do
+                local ok, err = func({input}, meta)
+                assert_nil(ok)
+                assert_equals(err, msg)
+            end
+
+            -- @fixme: Add lists of lists
+
+            local opts = M.Options(
+                {name = 'num', type = 'number'},
+                {name = 'num_str_1', type = 'number'},
+                {prefix = 'pre', name = 'num_str_2', type = 'number'},
+                {name = 'list_num_1', type = 'list<number>'},
+                {name = 'list_num_2', type = 'list<number>'},
+                {name = 'str'},
+                {name = 'list_str_1', type = 'list<string>'},
+                {name = 'list_str_2', type = 'list'},
+                {name = 'list_list_1', type = 'list<list<number>>'},
+                {name = 'list_list_2', type = 'list<list<number>>'},
+                {name = 'list_list_3', type = 'list<list<number>>'},
+                {name = 'add', type = 'number', parse = function (n)
+                    return n + 1
+                end}
+            )
+
+            assert_items_equals(func(opts, meta), {
+                num = 3,
+                num_str_1 = 3,
+                num_str_2 = 3,
+                list_num_1 = {1, 2},
+                list_num_2 = {1},
+                str = '1',
+                list_str_1 = {'1', '2'},
+                list_str_2 = {'1'},
+                list_list_1 = {{1}},
+                list_list_2 = {{1}},
+                list_list_3 = {{1}},
+                add = 1
+            })
+        end
     end
 
-    local missing = {
-        [{name = 'test', check = nilify}] = nil,
-    }
-    for k, v in pairs(missing) do
-        local parser = M.Options()
-        parser:add(M.Setting:new(k))
-        local ok, msg = parser:parse(meta)
-        lu.assert_nil(ok)
-        assert_equals(msg, v)
-    end
+    -- luacheck: ignore test_options_parse
+    test_options_parse = make_options_parse_test(M.Options.parse)
 
-    local conf_parser = M.Options:clone()
-    conf_parser:add({prefix = 'zotero', name = 'test'})
-    conf_parser:add({prefix = 'zotero', name = 'list', type = 'list'})
-    conf_parser:add({prefix = 'zotero', name = 'num_list', type = 'list', parse = id})
-    conf_parser:add({prefix = 'zotero', name = 'higher_ord', type = 'list<list>'})
-
-    local conf = conf_parser:parse(meta)
-
-    assert_equals(conf.test, 'test')
-    assert_items_equals(conf.list, {'test'})
-    assert_items_equals(conf.num_list, {'3'})
-    assert_items_equals(conf.higher_ord, {{'test'}})
+    -- luacheck: ignore test_opts_parse
+    test_opts_parse = make_options_parse_test(
+        -- luacheck: ignore meta
+        function (opts, meta)
+            return M.opts_parse(meta, unpack(opts))
+        end
+    )
 end
 
 
--- Pandoc
--- ------
+--- Boilerplate
+-- @section
 
-
-
-
-
-
--- BOILERPLATE
--- ===========
-
--- luacheck: globals run
 --- Runs the tests
 --
 -- Looks up the `tests` metadata field in the current Pandoc document
 -- and passes it to `lu.LuaUnit.run`, as is. Also configures tests.
+--
+-- @tparam pandoc.Pandoc A Pandoc document.
 function run (doc)
     local test
     if doc.meta and doc.meta.test then

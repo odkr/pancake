@@ -1,4 +1,10 @@
+
+
 * Add documentation for the repository.
+  Strengths:
+  * interacting with the file system/files
+  * stable API
+  * complex data structures
 * Add tests/fix tests.
 * Add missing documentation for functions.
 * Take care of things like vars_get which just ain't nice.

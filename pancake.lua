@@ -100,14 +100,14 @@ do
     --
     -- In [Extended Backus-Naur Form](https://en.wikipedia.org/wiki/EBNF):
     --
-    --      Type = 'boolean' | 'function' | 'nil'    | 'number'   |
-    --             'string'  | 'table'    | 'thread' | 'userdata'
-    --
-    --      Type list = [ '?' ], type, { '|', type }
-    --
-    --      Wildcard = [ '?' ], '*'
-    --
-    --      Type declaration = type list | wildcard
+    -- > Type = 'boolean' | 'function' | 'nil'    | 'number'   |
+    --          'string'  | 'table'    | 'thread' | 'userdata'
+    -- >
+    -- > Type list = [ '?' ], type, { '|', type }
+    -- >
+    -- > Wildcard = [ '?' ], '*'
+    -- >
+    -- > Type declaration = type list | wildcard
     --
     -- <h3>Complex Types:</h3>
     --
@@ -243,7 +243,6 @@ end
 --         [C]: in ?
 --
 -- @function asserter
--- @fixme Not unit-tested.
 asserter = type_check('?function', '?function')(
     function (fin, msgh)
         return function (ok, ...)
@@ -267,13 +266,12 @@ asserter = type_check('?function', '?function')(
 -- > foo = protect(function () return 'foo' end)
 -- > foo()
 -- foo
--- > boo = protect(function () error 'Boo!' end)
+-- > boo = protect(function () error 'bar!' end)
 -- > boo()
--- nil    Boo!
+-- nil    bar!
 --
 -- @function protect
 -- @see jeopardise
--- @fixme Not unit-tested.
 protect = type_check('function')(
     function (func)
         return function (...)
@@ -304,8 +302,7 @@ protect = type_check('function')(
 --
 -- @function jeopardise
 -- @see protect
--- @fixme Not unit-tested.
--- @fixme Remove!
+-- @fixme Rename to `unprotect` or `deprotect`.
 jeopardise = type_check('function')(
     function (func)
         return function (...)
@@ -481,21 +478,20 @@ sorted = type_check('table', '?function', '?boolean')(
 -- @func iter An iterator. Must accept, but not honour,
 --  the same arguments as @{next}.
 -- @tab[opt] tab A table to iterate over.
--- @param[opt] key An index to start at.
+-- @param[opt] idx An index to start at.
 -- @return The values returned by the iterator.
 --
 -- @usage
--- > str = 'key: value'
--- > k, v = tabulate(split(str, '%s*:%s*', 2))
--- > print(k, v)
--- key    value
+-- > tab = {a = true, b = true, c = true}
+-- > tabulate(next, tab)
+-- a    b    c
 --
 -- @function tabulate
 tabulate = type_check('function')(
-    function (iter, tab, key)
+    function (iter, tab, idx)
         local vals = {}
         local n = 0
-        for v in iter, tab, key do
+        for v in iter, tab, idx do
             n = n + 1
             vals[n] = v
         end
@@ -526,7 +522,7 @@ update = type_check('table', '?table|userdata', '...')(
 
 --- Walk a tree and apply a function to every node.
 --
--- * The tree is walked bottom-up, from left to right.
+-- * The tree is walked bottom-up.
 -- * Nodes are only changed if the function returns a value other than `nil`.
 -- * Handles cyclic data structures.
 --
@@ -822,6 +818,12 @@ do
     --
     -- The expression as a whole must evaluate either to a string or a number.
     --
+    -- Variables can be given as a table (e.g., `{foo = 'bar'}`) or a function
+    -- (e.g., `function (k) if k == 'foo' then return bar end end`). If
+    -- they are given as a function, multi-dimensional lookups ('${foo.bar}'),
+    -- pipes ('${foo|bar'), and recursive substitution are *not* supported.
+    -- The given function is run in protected mode.
+    --
     -- @string str A string.
     -- @tparam func|tab map A mapping of variable names to values.
     -- @treturn[1] string A transformed string.
@@ -829,8 +831,6 @@ do
     -- @treturn[2] string An error message.
     --
     -- @function vars_sub
-    -- @fixme Functions are not documented;
-    --  note that they're run in protected mode.
     vars_sub = type_check('string', 'function|table', '?table')(protect(
         function (str, mapping, _seen)
             if not _seen then _seen = {} end
@@ -852,11 +852,18 @@ do
     -- luacheck: ignore assert
     local assert = asserter(nil, vars_sub)
 
-    -- @fixme
-    local function get_env (key)
-        assert(key ~= '', '$${}: variable name is the empty string.')
-        assert(key:match '^[%a_][%w_]+$', '$${${key}}: illegal variable name.')
-        local val = assert(os.getenv(key), '$${${key}}: is undefined.')
+    -- Look up a variable in the environment.
+    --
+    -- @side Prints a warning to STDERR if the variable is empty.
+    --
+    -- @string var The variable name.
+    -- @treturn string The value of that variable.
+    -- @raise An error if the variable name is illegal or
+    --  if the variable is unset.
+    local function get_env (var)
+        assert(var ~= '', '$${}: variable name is the empty string.')
+        assert(var:match '^[%a_][%w_]+$', '$${${var}}: illegal variable name.')
+        local val = assert(os.getenv(var), '$${${var}}: is undefined.')
         if val == '' then xwarn('$${${var}}: is empty.') end
         return val
     end
@@ -1159,9 +1166,6 @@ do
                     local err = 'resource path %d is the empty string.'
                     return nil, format(err, i)
                 end
-                -- if path join were to check for this
-                -- there'd be no need for the loop here
-                -- @fixme
                 local path = path_join(dir, fname)
                 if file_exists(path) then return path end
             end
@@ -1272,7 +1276,7 @@ do
             local dir, base = path_split(path_make_abs(fname))
             local data = {...}
             local tmp_dir
-            local ok, err, errno = with_temporary_directory(dir, 'pdz',
+            local ok, err, errno = with_temporary_directory(dir, 'tmp',
                 function (td)
                     tmp_dir = td
                     xwarn 'made temporary directory ${td|path_prettify}.'
@@ -1323,7 +1327,7 @@ do
     -- `tmp_fname` checks whether that name is in use and the time it returns.
     --
     -- @string[opt] dir A directory to prefix the filename with.
-    -- @string[opt='pan-XXXXXX'] templ A template for the filename.
+    -- @string[opt='tmp-XXXXXX'] templ A template for the filename.
     --  'X's are replaced with random alphanumeric characters.
     -- @treturn[1] string A filename.
     -- @treturn[2] nil `nil` if the generated filename is in use.
@@ -1333,7 +1337,7 @@ do
     tmp_fname = type_check('?string', '?string')(
         function (dir, templ)
             assert(dir ~= '', 'directory is the empty string.')
-            if not templ then templ = 'pan-XXXXXX' end
+            if not templ then templ = 'tmp-XXXXXX' end
             if dir then templ = path_join(dir, templ) end
             local len = #templ
             for _ = 1, 32 do
@@ -1421,8 +1425,6 @@ end
 
 --- Join path segments.
 --
--- @caveats Accepts empty strings as arguments.
---
 -- @string ... Path segments.
 -- @treturn string A path.
 --
@@ -1433,7 +1435,13 @@ end
 -- foo/bar
 path_join = type_check('string', '...')(
     function (...)
-        return path_normalise(concat({...}, PATH_SEP))
+        local segs = {...}
+        for i = 1, #segs do
+            if segs[i] == '' then
+                error(format('segment %d is the empty string.', i))
+            end
+        end
+        return path_normalise(concat(segs, PATH_SEP))
     end
 )
 
@@ -1709,7 +1717,6 @@ end
 --
 -- @tparam pandoc.AstElement elem A Pandoc AST element.
 -- @treturn pandoc.AstElement The clone.
--- @fixme Not unit-tested.
 --
 -- @function elem_clone
 if not pandoc.types or PANDOC_VERSION < {2, 15} then
@@ -2004,108 +2011,6 @@ end
 --- Options
 -- @section
 
---- An option parser.
---
--- @see opts_parse
--- @see Options:new
--- @see Options:add
--- @see Options:parse
--- @object Options
--- @proto @{Object}
-Options = Object:clone()
-
---- Create a new option parser.
---
---    parser = Options:new{name = 'foo'}
---
--- is equivalent to:
---
---    parser = Options()
---    parser:add{name = 'foo'}
---
--- @tab ... Option definitions.
---
--- @see Options:add
--- @function Options:new
-Options.new = type_check('table', {
-    name = 'string',
-    type = '?string',
-    parse = '?function',
-    prefix = '?string'
-})(
-    function (proto, ...)
-        local obj = Object.new(proto)
-        if select('#', ...) > 0 then obj:add(...) end
-        return obj
-    end
-)
-
---- Add an option to the parser.
---
--- @tab ... Option definitions.
---
--- @usage
--- parser = Options()
--- parser:add{
---     name = 'bar',
---     type = 'number',
---     parse = function (x)
---         if x < 1 return return nil, 'not a positive number.' end
---         return x
---     end
--- }
---
--- @see opts_parse
--- @see Options:parse
--- @function Options:add
-Options.add = type_check('table', {
-    name = 'string',
-    type = '?string',
-    parse = '?function',
-    prefix = '?string'},
-'...')(
-    function (self, ...)
-        local items = pack(...)
-        for i = 1, items.n do self[#self + 1] = items[i] end
-    end
-)
-
---- Read options from a metadata block.
---
--- @tparam pandoc.MetaMap meta A metadata block.
--- @treturn[1] tab A mapping of option names to values.
--- @treturn[2] nil `nil` if an error occurred.
--- @treturn[2] string An error message.
---
--- @usage
--- > meta = pandoc.MetaMap{
--- >     ['foo-bar'] = pandoc.MetaInlines(pandoc.List{
--- >         pandoc.Str "0123"
--- >     })
--- > parser = Options()
--- > parser:add{
--- >     name = 'bar',
--- >     type = 'number',
--- >     parse = function (x)
--- >         if x < 1 return return nil, 'not a positive number.' end
--- >         return x
--- >     end
--- > }
--- > opts = parser:parse(meta)
--- > opts.bars
--- 123
--- > type(opts.bar)
--- number
---
--- @see opts_parse
--- @see Options:add
--- @function Options:parse
-Options.parse = type_check('table', 'table|userdata')(
-    function (self, meta)
-        return opts_parse(meta, unpack(self))
-    end
-)
-
 do
     -- luacheck: ignore stringify
     local pandoc_type = pandoc.utils.type
@@ -2116,7 +2021,7 @@ do
 
     -- Convert a configuration value to a type.
     --
-    -- @param val A value.
+    -- @param[opt] val A value.
     -- @string[opt='string'] type A type declaration.
     --  See @{opts_parse} for the grammar.
     -- @return[1] A value of the given type.
@@ -2126,10 +2031,10 @@ do
     local function convert (val, decl)
         if not decl then decl = 'string' end
         local head, tail = decl:match '^%s*(%l+)%s*<?%s*([%l<>%s]-)%s*>?%s*$'
-        if not head then error(decl .. ': cannot parse.', 3) end
+        if not head then error(decl .. ': cannot parse option type.', 3) end
         local conv = converters[head]
-        if not conv then error(head .. ': no such type.', 3) end
-        return conv(val, tail or 'string')
+        if not conv then error(head .. ': no such option type.', 3) end
+        if val ~= nil then return conv(val, tail or 'string') end
     end
 
     -- Convert a value to a Lua string.
@@ -2172,25 +2077,129 @@ do
     --
     -- @param val A value or list of values.
     -- @treturn pandoc.List A list of values.
-    function converters.list (val, decl)
+    function converters.list (vals, decl)
         if decl == '' then decl = 'string' end
-        local function conv (v) return convert(v, decl) end
-        local t = type(val)
-        if t == 'userdata' or t == 'table' then
-            if pandoc_type then
-                local pt = pandoc_type(val)
-                if pt == 'List' then return val:map(conv) end
-            else
-                local et = elem_type(val)
-                if et == 'MetaList' then
-                    return val:map(conv)
-                elseif t == 'table' and not et then
-                    return pandoc.List:new(val):map(conv)
-                end
+        if
+            -- Pandoc ≥ v2.17.
+            (pandoc_type and pandoc_type(vals) == 'List') or
+            -- Old versions of Pandoc.
+            elem_type(vals) == 'MetaList' or
+            -- Ancient versions of Pandoc, maybe.
+            (type(vals) == 'table' and select(2, keys(vals)) == #vals)
+        then
+            local list = pandoc.List:new()
+            for i = 1, #vals do
+                local v, err = convert(vals[i], decl)
+                if not v then return nil, format('item no. %d: %s', i, err) end
+                list[i] = v
+            end
+            return list
+        end
+        local v, err = convert(vals, decl)
+        if not v then return nil, err end
+        return pandoc.List:new{v}
+    end
+
+    --- An option list.
+    --
+    -- @see opts_parse
+    -- @see Options:new
+    -- @see Options:add
+    -- @see Options:parse
+    -- @object Options
+    -- @proto @{Object}
+    Options = Object:clone()
+
+    --- Create a new option parser.
+    --
+    --    parser = Options:new{name = 'foo'}
+    --
+    -- is equivalent to:
+    --
+    --    parser = Options()
+    --    parser:add{name = 'foo'}
+    --
+    -- @tab ... Option definitions.
+    --
+    -- @see Options:add
+    -- @function Options:new
+    Options.new = type_check('table', '?table', '...')(
+        function (proto, ...)
+            local obj = Object.new(proto)
+            if select('#', ...) > 0 then obj:add(...) end
+            return obj
+        end
+    )
+
+    --- Add an option to the list.
+    --
+    -- @tab ... Option definitions.
+    --
+    -- @usage
+    -- parser = Options()
+    -- parser:add{
+    --     name = 'bar',
+    --     type = 'number',
+    --     parse = function (x)
+    --         if x < 1 return return nil, 'not a positive number.' end
+    --         return x
+    --     end
+    -- }
+    --
+    -- @see opts_parse
+    -- @see Options:parse
+    -- @function Options:add
+    Options.add = type_check('table', {
+        name = 'string',
+        type = '?string',
+        parse = '?function',
+        prefix = '?string'},
+    '...')(
+        function (self, ...)
+            local opts = pack(...)
+            for i = 1, opts.n do
+                local opt = opts[i]
+                convert(nil, opt.type)
+                self[#self + 1] = opt
             end
         end
-        return pandoc.List:new{conv(val)}
-    end
+    )
+
+    --- Read options from a metadata block.
+    --
+    -- @tparam pandoc.MetaMap meta A metadata block.
+    -- @treturn[1] tab A mapping of option names to values.
+    -- @treturn[2] nil `nil` if an error occurred.
+    -- @treturn[2] string An error message.
+    --
+    -- @usage
+    -- > meta = pandoc.MetaMap{
+    -- >     ['foo-bar'] = pandoc.MetaInlines(pandoc.List{
+    -- >         pandoc.Str "0123"
+    -- >     })
+    -- > parser = Options()
+    -- > parser:add{
+    -- >     name = 'bar',
+    -- >     type = 'number',
+    -- >     parse = function (x)
+    -- >         if x < 1 return return nil, 'not a positive number.' end
+    -- >         return x
+    -- >     end
+    -- > }
+    -- > opts = parser:parse(meta)
+    -- > opts.bars
+    -- 123
+    -- > type(opts.bar)
+    -- number
+    --
+    -- @see opts_parse
+    -- @see Options:add
+    -- @function Options:parse
+    Options.parse = type_check('table', 'table|userdata')(
+        function (self, meta)
+            return opts_parse(meta, unpack(self))
+        end
+    )
 
     --- Read configuration options from a metadata block.
     --
@@ -2237,7 +2246,7 @@ do
     --
     -- In [Extended Backus-Naur Form](https://en.wikipedia.org/wiki/EBNF):
     --
-    -- > Scalar = ( 'number' | 'string' )
+    -- > Scalar = 'number' | 'string'
     -- >
     -- > List = 'list', [ '<', ( scalar | list ), '>' ]
     --
@@ -2249,6 +2258,13 @@ do
     -- return a new value or `nil` and an error message.
     --
     -- They are *not* called for `nil`.
+    --
+    -- @caveats
+    --
+    -- @{Options:add} throws an error if it is given a wrong option type
+    -- (e.g., 'int' or 'list[number]'). `opts_parse` accepts wrong option
+    -- types and only throws an error if it encounters an option that is
+    -- supposed to be of that type.
     --
     -- @tparam pandoc.MetaMap meta A metadata block.
     -- @tparam Option ... Option definitions.
@@ -2294,7 +2310,9 @@ do
                     for _, func in pairs{convert, def.parse} do
                         if not func then break end
                         val, err = func(val, def.type)
-                        if not val then return nil, key .. ': ' .. err end
+                        if not val then
+                            return nil, key .. ': ' .. err
+                        end
                     end
                     opts[def.name] = val
                 end
@@ -2303,4 +2321,9 @@ do
         end
     )
 end
+
+
+-- Boilerplate
+-- ===========
+
 return M
