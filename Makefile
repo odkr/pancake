@@ -48,7 +48,7 @@ lint:
 
 docs: docs/index.html
 
-docs/index.html: $(SCRIPT)
+docs/index.html: $(SCRIPT) README.md docs/config.ld
 	ldoc -c docs/config.ld $(SCRIPT)
 
 .PHONY: all docs lint test tempdir
