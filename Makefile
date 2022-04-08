@@ -42,7 +42,7 @@ test: tempdir
 	@[ -e share/lua/*/luaunit.lua ] || luarocks install --tree=. luaunit
 	@"$(PANDOC)" $(PANDOC_ARGS) --from markdown --to plain \
 	             --lua-filter=$(UNIT_TESTS) \
-		     --metadata test="$(TEST)" /dev/null
+	             --metadata test="$(TEST)" /dev/null
 lint:
 	@luacheck --quiet $(UNIT_TESTS) $(SCRIPT) || [ $$? -eq 127 ]
 
