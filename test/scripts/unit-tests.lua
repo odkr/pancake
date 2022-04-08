@@ -34,32 +34,31 @@ DEBUG = true
 
 -- Libraries.
 
---- The path segment separator used by the operating system.
-PATH_SEP = package.config:sub(1, 1)
-
--- A shorthand for joining paths.
-local function path_join(...) return table.concat({...}, PATH_SEP) end
-
---- The directory of this script.
-local SCPT_DIR = PANDOC_SCRIPT_FILE:match('(.*)' .. PATH_SEP)
-
---- The directory of the test suite.
-local TEST_DIR = path_join(SCPT_DIR, '..')
-
---- The repository directory.
-local REPO_DIR = path_join(TEST_DIR, '..')
-
---- The test suite's data directory.
-local DATA_DIR = path_join(TEST_DIR, 'data')
-
---- The test suite's tempory directory.
-local TMP_DIR = os.getenv 'TMPDIR' or path_join(TEST_DIR, 'tmp')
-
 do
-    package.path = table.concat({package.path,
-        path_join(REPO_DIR, '?.lua'),
-        path_join(REPO_DIR, 'share', 'lua', '5.4', '?.lua')
-    }, ';')
+	local path_sep = package.config:sub(1, 1)
+	local function path_join(...) return table.concat({...}, path_sep) end
+
+	-- The directory of this script.
+	local scpt_dir = PANDOC_SCRIPT_FILE:match('(.*)' .. path_sep)
+
+	-- The directory of the test suite.
+	local test_dir = path_join(scpt_dir, '..')
+
+	-- The repository directory.
+	local repo_dir = path_join(test_dir, '..')
+
+	--- The test suite's data directory.
+	DATA_DIR = path_join(test_dir, 'data')
+
+	--- The test suite's tempory directory.
+	TMP_DIR = os.getenv 'TMPDIR' or path_join(test_dir, 'tmp')
+
+	do
+	    package.path = table.concat({package.path,
+	        path_join(repo_dir, '?.lua'),
+	        path_join(repo_dir, 'share', 'lua', '5.4', '?.lua')
+	    }, ';')
+	end
 end
 
 local lu = require 'luaunit'
@@ -613,6 +612,28 @@ function test_sorted ()
     assert_error(M.sorted, unsorted)
     assert_error(M.sorted, unsorted, false)
     assert_not_nil(M.sorted, unsorted, true)
+
+	local tab = {c = 3, b = 2, a = 1}
+	local out = {}
+	for k, v in M.sorted(tab) do out[#out + 1] = {[k] = v} end
+	assert_items_equals(out, {{a = 1}, {b = 2}, {c = 3}})
+
+	out = {}
+	for k, v in M.sorted(tab, M.order{'c', 'b', 'a'}) do
+	    out[#out + 1] = {[k] = v}
+	end
+	assert_items_equals(out, {{c = 3}, {b = 2}, {a = 1}})
+
+	mt = {sort = M.order{'c', 'b', 'a'}}
+	setmetatable(tab, mt)
+	out = {}
+	for k, v in M.sorted(tab) do out[#out + 1] = {[k] = v} end
+	assert_items_equals(out, {{c = 3}, {b = 2}, {a = 1}})
+
+	mt.__pairs = M.sorted
+	out = {}
+	for k, v in pairs(tab) do out[#out + 1] = {[k] = v} end
+	assert_items_equals(out, {{c = 3}, {b = 2}, {a = 1}})
 end
 
 -- luacheck: ignore test_tabulate
@@ -648,6 +669,9 @@ function test_update ()
     assert_nil(other_tab.foo)
     table.insert(tab.baz, 'bam!')
     assert_equals(other_tab.baz[1], 'bam!')
+
+	tab = {a = true, b = true, c = true}
+	assert_items_equals(M.tabulate(next, tab), {'a', 'b', 'c'})
 end
 
 -- luacheck: ignore test_walk
@@ -854,6 +878,46 @@ function test_vars_sub ()
     } do
         assert_equals(M.vars_sub(unpack(input)), output)
     end
+
+	assert_equals(M.vars_sub(
+		'${v1} is ${v2}.',
+		{v1 = 'foo', v2 = 'bar'}
+	), 'foo is bar.')
+
+	assert_equals(M.vars_sub(
+	    '$${var} costs $$1.',
+	    {var = 'foo'}
+	), '${var} costs $1.')
+
+	assert_equals(M.vars_sub(
+	    '${foo.bar} is baz.', {
+	        foo = { bar = 'baz' }
+	    }
+	), 'baz is baz.')
+
+	assert_equals(M.vars_sub(
+	    '${var|barify} is bar!', {
+	        var = 'foo',
+	        barify = function (s)
+	            return s:gsub('foo', 'bar')
+	        end
+	    }
+	), 'bar is bar!')
+
+	assert_equals(M.vars_sub(
+	    '${foo|barify} is bar.', {
+	        foo = '${bar}',
+	        bar = 'baz',
+	        barify = function (s) return s:gsub('baz', 'bar') end
+	    }
+	), 'bar is bar.')
+
+	assert_equals(M.vars_sub(
+	    '${foo} is bar.',
+	    function (key)
+	        if key == 'foo' then return 'bar' end
+	    end
+	), 'bar is bar.')
 end
 
 -- luacheck: ignore test_env_sub
@@ -911,6 +975,10 @@ function test_no_case ()
         tab[non_str] = i
         assert_equals(tab[non_str], i)
     end
+
+	tab = setmetatable({}, M.no_case)
+	tab.FOO = 'bar'
+	assert_equals(tab.foo, 'bar')
 end
 
 -- Prototypes.
@@ -967,6 +1035,12 @@ function test_object_new ()
     local b = M.update(M.Object:clone(), unpack(args))
     assert_items_equals(a, b)
     assert_items_equals(getmetatable(a), getmetatable(b))
+
+	local foo = M.Object:new{foo = 'foo'}
+	assert_equals(foo.foo, 'foo')
+	local bar = foo:new{bar = 'bar'}
+	assert_equals(bar.foo, 'foo')
+	assert_equals(bar.bar, 'bar')
 end
 
 -- luacheck: ignore test_getterify
@@ -997,8 +1071,8 @@ function test_getterify ()
     baz.foo = 'bam!'
     assert_equals(baz.bar, 'bam!')
     local bam = baz()
-    bam.foo = 'Bam!'
-    assert_equals(bam.bar, 'Bam!')
+    bam.foo = 'BAM!'
+    assert_equals(bam.bar, 'BAM!')
 end
 
 
@@ -1204,6 +1278,8 @@ function test_path_join ()
     } do
         assert_equals(M.path_join(unpack(input)), output)
     end
+
+	assert_equals(M.path_join('foo', 'bar'), 'foo' .. M.PATH_SEP .. 'bar')
 end
 
 -- luacheck: ignore test_path_make_abs
@@ -1264,6 +1340,8 @@ function test_path_normalise ()
     } do
         assert_equals(M.path_normalise(input), output)
     end
+
+	assert_equals(M.path_normalise './foo/./bar//', 'foo/bar')
 end
 
 -- luacheck: ignore test_path_prettify
@@ -1295,6 +1373,8 @@ function test_path_prettify ()
     for input, output in pairs(tests) do
         assert_equals(M.path_prettify(input), output)
     end
+
+	assert_equals(M.path_prettify(M.env_sub '${HOME}/foo/./bar//'), '~/foo/bar')
 end
 
 -- luacheck: ignore test_path_split
@@ -1340,6 +1420,11 @@ function test_path_split ()
         assert_equals(dir, output[1])
         assert_equals(fname, output[2])
     end
+
+	assert_equals(
+		pack(M.path_split('foo' .. M.PATH_SEP .. 'bar')),
+		{'foo', 'bar', n = 2}
+	)
 end
 
 -- luacheck: ignore test_project_dir
@@ -1378,7 +1463,7 @@ function test_elem_type ()
     local tests = {
         [Str 'test'] = {'Str', 'Inline', 'AstElement', n = 3},
         [Para{Str ''}] = {'Para', 'Block', 'AstElement', n = 3},
-        [read_md_file(path_join(DATA_DIR, 'foo.md'))] = {'Pandoc', n = 1},
+        [read_md_file(M.path_join(DATA_DIR, 'foo.md'))] = {'Pandoc', n = 1},
         [List{Str ''}] = {'Inlines', n = 1},
         [{Para{Str ''}}] = {'Blocks', n = 1}
     }
@@ -1397,21 +1482,29 @@ end
 
 -- luacheck: ignore test_elem_walk
 function test_elem_walk ()
-    local id = {AstElement = id}
-    local nilify = {AstElement = nilify}
-
     local fname = M.path_join(DATA_DIR, 'foo.md')
     local doc, err = read_md_file(fname)
-    assert(doc, err)
-    assert_equals(doc, M.elem_walk(doc, id))
-    assert_equals(doc, M.elem_walk(doc, nilify))
+    local id_flt = {AstElement = id}
+    local nilify_flt = {AstElement = nilify}
 
-    local yesify = {Str = function (s)
+	assert_error_msg_matches(
+		'.-%f[%a]the AST is traversed "bottomup" or "topdown".',
+		M.elem_walk, doc, {
+			AstElement = id,
+			traverse = true
+		}
+	)
+
+    assert(doc, err)
+    assert_equals(doc, M.elem_walk(doc, id_flt))
+    assert_equals(doc, M.elem_walk(doc, nilify_flt))
+
+    local yesify_flt = {Str = function (s)
         if stringify(s) == 'no' then return Str 'yes' end
     end}
-    local yes = M.elem_walk(Str 'no', yesify)
+    local yes = M.elem_walk(Str 'no', yesify_flt)
     assert_equals(stringify(yes), 'yes')
-    local no = M.elem_walk(Str 'no!', yesify)
+    local no = M.elem_walk(Str 'no!', yesify_flt)
     assert_equals(stringify(no), 'no!')
 
     local elem = Para{Str 'no'}
@@ -1441,6 +1534,16 @@ function test_options_add ()
 
     opts:add{name = 'test'}
     assert_equals(opts[1].name, 'test')
+
+    opts = M.Options()
+    opts:add{
+        name = 'bar',
+        type = 'number',
+        parse = function (x)
+            if x < 1 then return nil, 'not a positive number.' end
+            return x
+        end
+    }
 end
 
 do
@@ -1503,8 +1606,6 @@ do
                 assert_nil(ok)
                 assert_equals(err, msg)
             end
-
-            -- @fixme: Add lists of lists
 
             local opts = M.Options(
                 {name = 'num', type = 'number'},

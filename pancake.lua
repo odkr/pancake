@@ -1919,38 +1919,62 @@ do
         Pandoc = walk_doc
     }
 
+	-- Recurse into the child nodes of an element.
+	--
+	-- @caveats The element is modified *in-place*.
+	--
+	-- @tparam pandoc.AstElement elem A Pandoc AST element.
+	-- @string et The element's type.
+	-- @tparam {string=fun,...} filter A filter.
+	-- @tparam {string=bool,...} _seen Elements that have already been seen.
+	local function recurse (elem, et, filter, _seen)
+		local walker = walkers[et]
+        if walker then
+            walker(elem, filter, _seen)
+        elseif elem.content then
+            walk_table(elem.content, filter, _seen)
+        end
+	end
+
     --- Walk an AST element and apply a filter to matching elements.
     --
-    -- Differences to Pandoc's walkers:
+    -- <h3>Differences to Pandoc's Walkers</h3>
     --
-    -- * Walks AST elements of any type (inluding documents and metadata).
-    -- * Walks the AST bottom-up.
-    -- * Does *not* accept the `traverse` keyword.
-    -- * Applies the filter to the given element itself.
-    -- * Allows functions in the filter to return data of arbitrary types.
-    -- * Never modifies the original element.
-    -- * Accepts the type 'AstElement', which matches any element.
+    -- * The filter is applied to the given element itself.
+	-- * Changes to the AST, other than returning a new element, are ignored.
+	-- * The AST is traversed bottom-up or top-down, but *not* typewise.
+	-- * Support for type 'AstElement', which matches every AST element,
+	--   but not lists of AST elements.
+    -- * Documents and metadata are traversed, too.
+	--
+	-- <h3>Direction of Traversal</h3>
+	--
+	-- Depends on the filter's `traverse` field:
+	--
+	-- * `bottomup`: Traverse the AST bottom-up. (*default*)
+	-- * `topdown`: Traverse the AST top-down.
+	--
+	-- The AST is traversed left-to-right either way.
     --
     -- @tparam pandoc.AstElement elem A Pandoc AST element.
     -- @tparam {string=func,...} filter A filter.
     -- @return Typically but not necessarily, a new Pandoc AST element.
     --
     -- @function elem_walk
+	-- @fixme Traversal directions are not unit-tested.
     elem_walk = type_check('*', 'table', '?table')(
         function (elem, filter, _seen)
             if not _seen then _seen = {} end
             assert(not _seen[elem], 'cycle in data tree.')
+			local traverse = filter.traverse or 'bottomup'
+			assert(traverse == 'bottomup' or traverse == 'topdown',
+		           'the AST is traversed "bottomup" or "topdown".')
             local ets = {elem_type(elem)}
             local et = ets[1]
             if et then
                 _seen[elem] = true
                 elem = elem_clone(elem)
-                local walker = walkers[et]
-                if walker then
-                    walker(elem, filter, _seen)
-                elseif elem.content then
-                    walk_table(elem.content, filter, _seen)
-                end
+				if traverse == 'bottomup' then recurse(elem, et, filter, _seen) end
                 for i = 1, #ets do
                     local func = filter[ets[i]]
                     if func then
@@ -1958,6 +1982,7 @@ do
                         if new ~= nil then elem = new end
                     end
                 end
+				if traverse == 'topdown' then recurse(elem, et, filter, _seen) end
             elseif type(elem) == 'table' then
                 _seen[elem] = true
                 if elem.clone then elem = elem:clone()
@@ -2006,7 +2031,6 @@ do
     -- @treturn[1] string A string.
     -- @treturn[2] nil `nil` if the value cannot be converted to a string.
     -- @treturn[2] string An error message.
-    -- @todo Test whether stringify could do all the work.
     function converters.string (val)
         local t = type(val)
         if t == 'string' then
@@ -2075,12 +2099,12 @@ do
 
     --- Create a new option list.
     --
-    --    parser = Options:new{name = 'foo'}
+    --    opts = Options:new{name = 'foo'}
     --
     -- is equivalent to:
     --
-    --    parser = Options()
-    --    parser:add{name = 'foo'}
+    --    opts = Options()
+    --    opts:add{name = 'foo'}
     --
     -- @tab ... Option definitions.
     --
@@ -2099,12 +2123,12 @@ do
     -- @tab ... Option definitions.
     --
     -- @usage
-    -- parser = Options()
-    -- parser:add{
+    -- opts = Options()
+    -- opts:add{
     --     name = 'bar',
     --     type = 'number',
     --     parse = function (x)
-    --         if x < 1 return return nil, 'not a positive number.' end
+    --         if x < 1 then return nil, 'not a positive number.' end
     --         return x
     --     end
     -- }
