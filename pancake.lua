@@ -474,7 +474,7 @@ sorted = type_check('table', '?function', '?boolean')(
 
 --- Tabulate the values that an iterator returns.
 --
--- @func iter An iterator. Must accept, but not honour,
+-- @func iter An iterator. Must accept, though not honour,
 --  the same arguments as @{next}.
 -- @tab[opt] tab A table to iterate over.
 -- @param[opt] idx An index to start at.
@@ -519,10 +519,10 @@ update = type_check('table', '?table|userdata', '...')(
     end
 )
 
---- Walk a tree and apply a function to each node.
+--- Apply a function to each node of a tree.
 --
+-- * Nodes are only changed if the function returns a non-`nil` value.
 -- * The tree is walked bottom-up.
--- * Nodes are only changed if the function returns a value other than `nil`.
 -- * Handles cyclic data structures.
 --
 -- @param val A value.
@@ -567,12 +567,9 @@ walk = type_check('*', 'function', '?table')(
 -- @string str A string.
 -- @string pattern Where to split the string.
 -- @int[opt] max Split the string into at most that many substrings.
--- @string[opt] incl Include separators in substrings?
---
---  * 'l' includes them on the left,
---  * 'r' on the right.
---
---  By default, separators are *not* included.
+-- @string[opt] incl Include separator in substrings?
+--  'l' includes it on the left,
+--  'r' on the right.
 -- @bool[opt=false] plain Disable pattern matching facilities?
 -- @treturn func A *stateful* iterator.
 --
@@ -804,7 +801,7 @@ do
     --    > vars_sub(
     --    >     '${foo|barify} is bar.', {
     --    >         foo = '${bar}',
-    --    >         bar = 'baz'
+    --    >         bar = 'baz',
     --    >         barify = function (s) return s:gsub('baz', 'bar') end
     --    >     }
     --    > )
@@ -1501,7 +1498,7 @@ do
     -- @function path_prettify
     --
     -- @usage
-    -- > path_prettify(env_sub '$HOME/foo/./bar//')
+    -- > path_prettify(env_sub '${HOME}/foo/./bar//')
     -- ~/foo/bar
     path_prettify = type_check('string')(
         function (path)
@@ -1593,7 +1590,7 @@ do
     local verbosity
     if PANDOC_STATE and PANDOC_STATE.verbosity
         then verbosity = PANDOC_STATE.verbosity:lower()
-        else verbisoty = 'warning'
+        else verbosity = 'warning'
     end
 
     -- Compare verbosity levels.
