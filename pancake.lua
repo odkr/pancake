@@ -231,7 +231,7 @@ end
 -- @usage
 -- > local assert = asserter(nil, vars_sub)
 -- > function foo ()
--- >    bar = 'The bar'
+-- >    local bar = 'The bar'
 -- >    assert(false, '${bar} is to blame!')
 -- > end
 -- > foo()
@@ -282,7 +282,7 @@ protect = type_check('function')(
     end
 )
 
---- Decorator that raises an error if a function returns a falsy value.
+--- Decorator that raises an error if a function returns a fail value.
 --
 -- @func func A function.
 -- @treturn func A function that throws an error on failures.
@@ -519,7 +519,7 @@ update = type_check('table', '?table|userdata', '...')(
     end
 )
 
---- Walk a tree and apply a function to every node.
+--- Walk a tree and apply a function to each node.
 --
 -- * The tree is walked bottom-up.
 -- * Nodes are only changed if the function returns a value other than `nil`.
@@ -562,7 +562,7 @@ walk = type_check('*', 'function', '?table')(
 
 --- Iterate over substrings of a string.
 --
--- @caveats Neither supports multi-byte characters nor frontier patterns.
+-- @caveats Does not support multi-byte characters.
 --
 -- @string str A string.
 -- @string pattern Where to split the string.
@@ -573,6 +573,7 @@ walk = type_check('*', 'function', '?table')(
 --  * 'r' on the right.
 --
 --  By default, separators are *not* included.
+-- @bool[opt=false] plain Disable pattern matching facilities?
 -- @treturn func A *stateful* iterator.
 --
 -- @usage
@@ -584,42 +585,49 @@ walk = type_check('*', 'function', '?table')(
 -- "Case"
 --
 -- @function split
--- @todo Add a flag to disable pattern matching?
-split = type_check('string', 'string', '?number', '?string')(
-    function (str, pattern, max, incl)
-        -- @fixme Why wouldn't it? Check this.
-        assert(not pattern:match '%f[%%]%%f', 'split does not support %f.')
+split = type_check('string', 'string', '?number', '?string', '?boolean')(
+    function (str, pattern, max, incl, plain)
         assert(not incl or incl == 'l' or incl == 'r', 'expecting "l" or "r".')
-        local pos = 1
-        local lst = 1
+		local pos = 1
+		local pss = 1
+		local emp = 0
         local n = 1
         return function ()
             if not pos then return end
-            local ts, te, s, e
-            if not max or n < max then s, e = str:find(pattern, pos) end
+            local sub, s, e
+            if not max or n < max then s, e = str:find(pattern, pos, plain) end
             if s then
-                if not incl then
-                    ts = pos
-                    te = s - 1
-                elseif incl == 'l' then
-                    ts = lst
-                    te = s - 1
-                else
-                    ts = pos
-                    te = e
-                end
-                pos = e + 1
-                lst = s
+				if s <= e then
+	                if not incl then
+						sub = str:sub(pos - emp, s - 1)
+	                elseif incl == 'l' then
+						sub = str:sub(pss, s - 1)
+						pss = s
+	                else
+						sub = str:sub(pos - emp, e)
+	                end
+	                pos = e + 1
+					emp = 0
+				else
+					if incl == 'l' then
+						sub = str:sub(pss, s)
+						pss = s + 1
+					else
+						sub = str:sub(pos - emp, e)
+					end
+					pos = s + 1
+					emp = 1
+				end
             else
                 if incl == 'l' then
-                    ts = lst
+					sub = str:sub(pss)
                 else
-                    ts = pos
+					sub = str:sub(pos - emp)
                 end
                 pos = nil
             end
             n = n + 1
-            return str:sub(ts, te)
+            return sub
         end
     end
 )
@@ -891,20 +899,20 @@ end
 --
 -- @usage
 --
--- > tab = setmetatable({}, ignore_case)
+-- > tab = setmetatable({}, no_case)
 -- > tab.FOO = 'bar'
 -- > tab.foo
 -- bar
 --
--- @todo Rename to nocase.
-ignore_case = {}
+-- @todo Rename to no_case.
+no_case = {}
 
 --- Look up an item.
 --
 -- @tab tab A table.
 -- @param key A key.
 -- @return The item.
-function ignore_case.__index (tab, key)
+function no_case.__index (tab, key)
     if type(key) == 'string' and key:match '%u' then
         return tab[key:lower()]
     end
@@ -915,43 +923,10 @@ end
 -- @tab tab A table.
 -- @param key A key.
 -- @param val A value.
-function ignore_case.__newindex (tab, key, val)
+function no_case.__newindex (tab, key, val)
     if type(key) == 'string' then key = key:lower() end
     rawset(tab, key, val)
 end
-
---- Metatable that sorts key-value pairs.
---
--- @usage
--- > tab = setmetatable({c = 3, b = 2, a = 1}, sort_pairs)
--- > for k, v in pairs(tab) do
--- >     print(k, v)
--- > end
--- a    1
--- b    2
--- c    3
-sort_pairs = {}
-
---- Iterate over the key-value pairs of a table in a given order.
---
--- What order pairs are iterated over is defined by the `sort` metamethod.
--- If no metamethod of that name is given, pairs are iterated over in
--- lexical order. See @{sorted} for details.
---
--- @tab tab A table.
--- @treturn func A *stateful* iterator.
---
--- @usage
--- > sort = order{'c', 'b', 'a'}
--- > mt = update({sort = sort}, sort_pairs)
--- > tab = setmetatable({a = 1, b = 2, c = 3}, mt)
--- > for k, v in pairs(tab) do
--- >     print(k, v)
--- > end
--- c    3
--- b    2
--- a    1
-sort_pairs.__pairs = sorted
 
 
 --- Prototypes
@@ -1012,7 +987,7 @@ Object.clone = type_check('table', '?table', '?table')(
     end
 )
 
---- Create and initialise a table that delegates to an object.
+--- Initialise an Object.
 --
 -- `Object:new(...)` is equivalent to `update(Object:clone(), ...)`.
 --
@@ -1499,7 +1474,7 @@ do
     local home_dir
     do
         if PATH_SEP == '/' then
-            local env_home = os.getenv('HOME')
+            local env_home = os.getenv 'HOME'
             if env_home and env_home ~= '' and path_is_abs(env_home) then
                 home_dir = path_normalise(env_home)
             end
@@ -1947,7 +1922,7 @@ do
         Pandoc = walk_doc
     }
 
-    --- Walk an AST and apply a filter to matching elements.
+    --- Walk an AST element and apply a filter to matching elements.
     --
     -- Differences to Pandoc's walkers:
     --
@@ -2101,7 +2076,7 @@ do
     -- @proto @{Object}
     Options = Object:clone()
 
-    --- Create a new option parser.
+    --- Create a new option list.
     --
     --    parser = Options:new{name = 'foo'}
     --
@@ -2156,7 +2131,7 @@ do
         end
     )
 
-    --- Read options from a metadata block.
+    --- Parse options from a metadata block (OO-interface).
     --
     -- @tparam pandoc.MetaMap meta A metadata block.
     -- @treturn[1] tab A mapping of option names to values.
@@ -2192,7 +2167,7 @@ do
         end
     )
 
-    --- Read configuration options from a metadata block.
+    --- Parse options from a metadata block (function).
     --
     -- <h3>Option definition syntax:</h3>
     --

@@ -5,7 +5,6 @@
 --
 -- **pandoc** **-L** *unit-tests.lua* -o /dev/null /dev/null
 --
---
 -- DESCRIPTION
 -- ===========
 --
@@ -13,12 +12,10 @@
 -- depends on the `test` metadata field, which is passed as is to
 -- `lu.LuaUnit.run`. If it is not set, all tests are run.
 --
---
 -- SEE ALSO
 -- ========
 --
 -- <https://luaunit.readthedocs.io/>
---
 --
 -- @script unit-tests.lua
 -- @author Odin Kroeger
@@ -85,7 +82,9 @@ local map = List.map
 local stringify = pandoc.utils.stringify
 
 local assert_equals = lu.assert_equals
+local assert_error = lu.assert_error
 local assert_not_equals = lu.assert_not_equals
+local assert_error_msg_equals = lu.assert_error_msg_equals
 local assert_error_msg_matches = lu.assert_error_msg_matches
 local assert_false = lu.assert_false
 local assert_items_equals = lu.assert_items_equals
@@ -343,6 +342,24 @@ do
                 end
             end
         end
+
+        local store = type_check('*', 'table', '?number', '...')(
+            function (val, tab, ...)
+                 local indices = table.pack(...)
+                 for i = 1, indices.n do tab[indices[i]] = val end
+            end
+        )
+
+        local tab = {}
+        store(true, tab, 1)
+        assert_true(tab[1])
+
+        assert_error_msg_matches('argument 2: expected table, got boolean%.',
+            store, false, true, 1)
+        assert_error_msg_matches('argument 3: expected number or nil, got string%.',
+            store, false, tab, '1')
+        assert_error_msg_matches('argument 4: expected number or nil, got string.',
+            store, false, tab, 1, '2')
         return true
     end
 end
@@ -375,6 +392,15 @@ function test_asserter ()
     assert_true(pcall(assert, true))
     assert_error_msg_matches('^bar$', assert, false, 'foo')
     assert_true(var)
+
+    local assert = M.asserter(nil, M.vars_sub)
+    local function foo ()
+        -- luacheck: ignore bar
+        local bar = 'The bar'
+        assert(false, '${bar} is to blame!')
+    end
+
+    assert_error_msg_equals('The bar is to blame!', foo)
 end
 
 -- luacheck: ignore test_protect
@@ -393,6 +419,13 @@ function test_protect ()
     ok, err = succ()
     assert_nil(err)
     assert_true(ok)
+
+    local foo = M.protect(function () return 'foo' end)
+    assert_equals(foo(), 'foo')
+    local boo = M.protect(function () error 'bar!' end)
+    ok, err = boo()
+    assert_nil(ok)
+    assert_str_matches(err, '.-%f[%a]bar!')
 end
 
 -- luacheck: ignore test_unprotect
@@ -475,6 +508,14 @@ function test_copy ()
     tab.tab = tab
     cp = M.copy(tab)
     assert_items_equals(cp, tab)
+
+	-- Test the example.
+	local foo = {1, 2, 3}
+	local bar = {foo, 4}
+	local baz = M.copy(bar)
+	foo[#foo + 1] = 4
+	assert_items_equals(baz[1], {1, 2, 3})
+
 end
 
 -- luacheck: ignore test_keys
@@ -515,6 +556,13 @@ function test_order ()
         table.sort(input.data, func)
         assert_equals(input.data, output)
     end
+
+	local tab = {a = 3, b = 4, c = 2, d = 1}
+	local out = {}
+	for k, v in M.sorted(tab, M.order{'d', 'c'}) do
+		out[#out + 1] = {[k] = v}
+	end
+	assert_items_equals(out, {{d = 1}, {c = 2}, {a = 3}, {b = 4}})
 end
 
 -- luacheck: ignore test_sorted
@@ -562,9 +610,9 @@ function test_sorted ()
     end
 
     mt.__pairs = error
-    lu.assert_error(M.sorted, unsorted)
-    lu.assert_error(M.sorted, unsorted, false)
-    lu.assert_not_nil(M.sorted, unsorted, true)
+    assert_error(M.sorted, unsorted)
+    assert_error(M.sorted, unsorted, false)
+    assert_not_nil(M.sorted, unsorted, true)
 end
 
 -- luacheck: ignore test_tabulate
@@ -639,7 +687,6 @@ end
 -- luacheck: ignore test_split
 function test_split ()
     for input, message in pairs{
-        [{'string', '%f[%a]'}] = '.-%f[%a]split does not support %%f%.$',
         [{'string', 'ri', nil, ''}] = '.-%f[%a]expecting "l" or "r"%.$'
     } do
         assert_error_msg_matches(message, M.split, unpack(input))
@@ -660,7 +707,16 @@ function test_split ()
         [{'CamelCaseTest', '%u', 2, 'l'}] =
             {'', 'CamelCaseTest'},
         [{'CamelCaseTest', '%u', 2, 'r'}] =
-            {'C', 'amelCaseTest'}
+            {'C', 'amelCaseTest'},
+		[{'foo*bar', '*', nil, nil, true}] = {'foo', 'bar'},
+		[{'foo.*bar', '.*', nil, nil, true}] = {'foo', 'bar'},
+        [{'$a$$b$c', '%f[%$]%$'}] = {'', 'a', '$b', 'c'},
+		[{'foo', ''}] = {'', 'f', 'o', 'o', ''},
+		[{'foo1bar2baz', '%f[%d]'}] = {'foo', '1bar', '2baz'},
+		[{'foobar', '[bo]*'}] = {'', 'f', 'a', 'r', ''},
+		[{'foobar', '[bo]*', nil, 'l'}] = {'', 'f', 'ooba', 'r', ''},
+		[{'foobar', '[bo]*', nil, 'r'}] = {'', 'foob', 'a', 'r', ''},
+		[{'foobar', '[bo]*', nil, 'r', true}] = {'foobar'}
     } do
         assert_items_equals(M.tabulate(M.split(unpack(input))), output)
     end
@@ -825,9 +881,9 @@ end
 
 -- Metatables.
 
--- luacheck: ignore test_ignore_case
-function test_ignore_case ()
-    local tab = setmetatable({}, M.ignore_case)
+-- luacheck: ignore test_no_case
+function test_no_case ()
+    local tab = setmetatable({}, M.no_case)
 
     local str = 'mIxEd'
     for i, new_index in ipairs{
@@ -1315,8 +1371,8 @@ end
 function test_elem_type ()
     for _, val in ipairs{true, 1, 'string', {}, function () end} do
         local ok, err = M.elem_type(val)
-        lu.assert_nil(ok)
-        lu.assert_str_matches(err, '.-%f[%a]not a Pandoc AST element.')
+        assert_nil(ok)
+        assert_str_matches(err, '.-%f[%a]not a Pandoc AST element.')
     end
 
     local tests = {
@@ -1364,7 +1420,7 @@ function test_elem_walk ()
         Para = function (p) if stringify(p) == 'no' then return Null() end end
     })
     assert_equals(stringify(walked), 'yes')
-    lu.assert_false(pandoc.utils.equals(elem, walked))
+    assert_false(pandoc.utils.equals(elem, walked))
 end
 
 
