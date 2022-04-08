@@ -27,10 +27,10 @@
 
 -- luacheck: allow defined top
 -- luacheck: globals PANDOC_SCRIPT_FILE PANDOC_VERSION pandoc
--- luacheck: ignore DEBUG
+-- luacheck: ignore CHECK_TYPES
 
---- Enable debugging mode.
-DEBUG = true
+--- Enable type-checking.
+CHECK_TYPES = true
 
 -- Libraries.
 
@@ -827,8 +827,8 @@ function test_vars_sub ()
     end
 
     for input, output in pairs{
-        [{'$${test}$', {test = 'nok'}}] = '${test}',
-        [{'${test}$', {test = 'ok'}}] = 'ok',
+        [{'$${test}$', {test = 'nok'}}] = '${test}$',
+        [{'${test}$', {test = 'ok'}}] = 'ok$',
         [{'$${test|func}', {
             test = 'nok',
             func = function ()
@@ -885,7 +885,7 @@ function test_vars_sub ()
 	), 'foo is bar.')
 
 	assert_equals(M.vars_sub(
-	    '$${var} costs $$1.',
+	    '$${var} costs $1.',
 	    {var = 'foo'}
 	), '${var} costs $1.')
 
