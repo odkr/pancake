@@ -35,30 +35,30 @@ CHECK_TYPES = true
 -- Libraries.
 
 do
-	local path_sep = package.config:sub(1, 1)
-	local function path_join(...) return table.concat({...}, path_sep) end
+    local path_sep = package.config:sub(1, 1)
+    local function path_join(...) return table.concat({...}, path_sep) end
 
-	-- The directory of this script.
-	local scpt_dir = PANDOC_SCRIPT_FILE:match('(.*)' .. path_sep)
+    -- The directory of this script.
+    local scpt_dir = PANDOC_SCRIPT_FILE:match('(.*)' .. path_sep)
 
-	-- The directory of the test suite.
-	local test_dir = path_join(scpt_dir, '..')
+    -- The directory of the test suite.
+    local test_dir = path_join(scpt_dir, '..')
 
-	-- The repository directory.
-	local repo_dir = path_join(test_dir, '..')
+    -- The repository directory.
+    local repo_dir = path_join(test_dir, '..')
 
-	--- The test suite's data directory.
-	DATA_DIR = path_join(test_dir, 'data')
+    --- The test suite's data directory.
+    DATA_DIR = path_join(test_dir, 'data')
 
-	--- The test suite's tempory directory.
-	TMP_DIR = os.getenv 'TMPDIR' or path_join(test_dir, 'tmp')
+    --- The test suite's tempory directory.
+    TMP_DIR = os.getenv 'TMPDIR' or path_join(test_dir, 'tmp')
 
-	do
-	    package.path = table.concat({package.path,
-	        path_join(repo_dir, '?.lua'),
-	        path_join(repo_dir, 'share', 'lua', '5.4', '?.lua')
-	    }, ';')
-	end
+    do
+        package.path = table.concat({package.path,
+            path_join(repo_dir, '?.lua'),
+            path_join(repo_dir, 'share', 'lua', '5.4', '?.lua')
+        }, ';')
+    end
 end
 
 local lu = require 'luaunit'
@@ -508,12 +508,12 @@ function test_copy ()
     cp = M.copy(tab)
     assert_items_equals(cp, tab)
 
-	-- Test the example.
-	local foo = {1, 2, 3}
-	local bar = {foo, 4}
-	local baz = M.copy(bar)
-	foo[#foo + 1] = 4
-	assert_items_equals(baz[1], {1, 2, 3})
+    -- Test the example.
+    local foo = {1, 2, 3}
+    local bar = {foo, 4}
+    local baz = M.copy(bar)
+    foo[#foo + 1] = 4
+    assert_items_equals(baz[1], {1, 2, 3})
 
 end
 
@@ -556,12 +556,12 @@ function test_order ()
         assert_equals(input.data, output)
     end
 
-	local tab = {a = 3, b = 4, c = 2, d = 1}
-	local out = {}
-	for k, v in M.sorted(tab, M.order{'d', 'c'}) do
-		out[#out + 1] = {[k] = v}
-	end
-	assert_items_equals(out, {{d = 1}, {c = 2}, {a = 3}, {b = 4}})
+    local tab = {a = 3, b = 4, c = 2, d = 1}
+    local out = {}
+    for k, v in M.sorted(tab, M.order{'d', 'c'}) do
+        out[#out + 1] = {[k] = v}
+    end
+    assert_items_equals(out, {{d = 1}, {c = 2}, {a = 3}, {b = 4}})
 end
 
 -- luacheck: ignore test_sorted
@@ -613,27 +613,27 @@ function test_sorted ()
     assert_error(M.sorted, unsorted, false)
     assert_not_nil(M.sorted, unsorted, true)
 
-	local tab = {c = 3, b = 2, a = 1}
-	local out = {}
-	for k, v in M.sorted(tab) do out[#out + 1] = {[k] = v} end
-	assert_items_equals(out, {{a = 1}, {b = 2}, {c = 3}})
+    local tab = {c = 3, b = 2, a = 1}
+    local out = {}
+    for k, v in M.sorted(tab) do out[#out + 1] = {[k] = v} end
+    assert_items_equals(out, {{a = 1}, {b = 2}, {c = 3}})
 
-	out = {}
-	for k, v in M.sorted(tab, M.order{'c', 'b', 'a'}) do
-	    out[#out + 1] = {[k] = v}
-	end
-	assert_items_equals(out, {{c = 3}, {b = 2}, {a = 1}})
+    out = {}
+    for k, v in M.sorted(tab, M.order{'c', 'b', 'a'}) do
+        out[#out + 1] = {[k] = v}
+    end
+    assert_items_equals(out, {{c = 3}, {b = 2}, {a = 1}})
 
-	mt = {sort = M.order{'c', 'b', 'a'}}
-	setmetatable(tab, mt)
-	out = {}
-	for k, v in M.sorted(tab) do out[#out + 1] = {[k] = v} end
-	assert_items_equals(out, {{c = 3}, {b = 2}, {a = 1}})
+    mt = {sort = M.order{'c', 'b', 'a'}}
+    setmetatable(tab, mt)
+    out = {}
+    for k, v in M.sorted(tab) do out[#out + 1] = {[k] = v} end
+    assert_items_equals(out, {{c = 3}, {b = 2}, {a = 1}})
 
-	mt.__pairs = M.sorted
-	out = {}
-	for k, v in pairs(tab) do out[#out + 1] = {[k] = v} end
-	assert_items_equals(out, {{c = 3}, {b = 2}, {a = 1}})
+    mt.__pairs = M.sorted
+    out = {}
+    for k, v in pairs(tab) do out[#out + 1] = {[k] = v} end
+    assert_items_equals(out, {{c = 3}, {b = 2}, {a = 1}})
 end
 
 -- luacheck: ignore test_tabulate
@@ -670,8 +670,8 @@ function test_update ()
     table.insert(tab.baz, 'bam!')
     assert_equals(other_tab.baz[1], 'bam!')
 
-	tab = {a = true, b = true, c = true}
-	assert_items_equals(M.tabulate(next, tab), {'a', 'b', 'c'})
+    tab = {a = true, b = true, c = true}
+    assert_items_equals(M.tabulate(next, tab), {'a', 'b', 'c'})
 end
 
 -- luacheck: ignore test_walk
@@ -732,15 +732,15 @@ function test_split ()
             {'', 'CamelCaseTest'},
         [{'CamelCaseTest', '%u', 2, 'r'}] =
             {'C', 'amelCaseTest'},
-		[{'foo*bar', '*', nil, nil, true}] = {'foo', 'bar'},
-		[{'foo.*bar', '.*', nil, nil, true}] = {'foo', 'bar'},
+        [{'foo*bar', '*', nil, nil, true}] = {'foo', 'bar'},
+        [{'foo.*bar', '.*', nil, nil, true}] = {'foo', 'bar'},
         [{'$a$$b$c', '%f[%$]%$'}] = {'', 'a', '$b', 'c'},
-		[{'foo', ''}] = {'', 'f', 'o', 'o', ''},
-		[{'foo1bar2baz', '%f[%d]'}] = {'foo', '1bar', '2baz'},
-		[{'foobar', '[bo]*'}] = {'', 'f', 'a', 'r', ''},
-		[{'foobar', '[bo]*', nil, 'l'}] = {'', 'f', 'ooba', 'r', ''},
-		[{'foobar', '[bo]*', nil, 'r'}] = {'', 'foob', 'a', 'r', ''},
-		[{'foobar', '[bo]*', nil, 'r', true}] = {'foobar'}
+        [{'foo', ''}] = {'', 'f', 'o', 'o', ''},
+        [{'foo1bar2baz', '%f[%d]'}] = {'foo', '1bar', '2baz'},
+        [{'foobar', '[bo]*'}] = {'', 'f', 'a', 'r', ''},
+        [{'foobar', '[bo]*', nil, 'l'}] = {'', 'f', 'ooba', 'r', ''},
+        [{'foobar', '[bo]*', nil, 'r'}] = {'', 'foob', 'a', 'r', ''},
+        [{'foobar', '[bo]*', nil, 'r', true}] = {'foobar'}
     } do
         assert_items_equals(M.tabulate(M.split(unpack(input))), output)
     end
@@ -879,45 +879,45 @@ function test_vars_sub ()
         assert_equals(M.vars_sub(unpack(input)), output)
     end
 
-	assert_equals(M.vars_sub(
-		'${v1} is ${v2}.',
-		{v1 = 'foo', v2 = 'bar'}
-	), 'foo is bar.')
+    assert_equals(M.vars_sub(
+        '${v1} is ${v2}.',
+        {v1 = 'foo', v2 = 'bar'}
+    ), 'foo is bar.')
 
-	assert_equals(M.vars_sub(
-	    '$${var} costs $1.',
-	    {var = 'foo'}
-	), '${var} costs $1.')
+    assert_equals(M.vars_sub(
+        '$${var} costs $1.',
+        {var = 'foo'}
+    ), '${var} costs $1.')
 
-	assert_equals(M.vars_sub(
-	    '${foo.bar} is baz.', {
-	        foo = { bar = 'baz' }
-	    }
-	), 'baz is baz.')
+    assert_equals(M.vars_sub(
+        '${foo.bar} is baz.', {
+            foo = { bar = 'baz' }
+        }
+    ), 'baz is baz.')
 
-	assert_equals(M.vars_sub(
-	    '${var|barify} is bar!', {
-	        var = 'foo',
-	        barify = function (s)
-	            return s:gsub('foo', 'bar')
-	        end
-	    }
-	), 'bar is bar!')
+    assert_equals(M.vars_sub(
+        '${var|barify} is bar!', {
+            var = 'foo',
+            barify = function (s)
+                return s:gsub('foo', 'bar')
+            end
+        }
+    ), 'bar is bar!')
 
-	assert_equals(M.vars_sub(
-	    '${foo|barify} is bar.', {
-	        foo = '${bar}',
-	        bar = 'baz',
-	        barify = function (s) return s:gsub('baz', 'bar') end
-	    }
-	), 'bar is bar.')
+    assert_equals(M.vars_sub(
+        '${foo|barify} is bar.', {
+            foo = '${bar}',
+            bar = 'baz',
+            barify = function (s) return s:gsub('baz', 'bar') end
+        }
+    ), 'bar is bar.')
 
-	assert_equals(M.vars_sub(
-	    '${foo} is bar.',
-	    function (key)
-	        if key == 'foo' then return 'bar' end
-	    end
-	), 'bar is bar.')
+    assert_equals(M.vars_sub(
+        '${foo} is bar.',
+        function (key)
+            if key == 'foo' then return 'bar' end
+        end
+    ), 'bar is bar.')
 end
 
 -- luacheck: ignore test_env_sub
@@ -976,9 +976,9 @@ function test_no_case ()
         assert_equals(tab[non_str], i)
     end
 
-	tab = setmetatable({}, M.no_case)
-	tab.FOO = 'bar'
-	assert_equals(tab.foo, 'bar')
+    tab = setmetatable({}, M.no_case)
+    tab.FOO = 'bar'
+    assert_equals(tab.foo, 'bar')
 end
 
 -- Prototypes.
@@ -1036,11 +1036,11 @@ function test_object_new ()
     assert_items_equals(a, b)
     assert_items_equals(getmetatable(a), getmetatable(b))
 
-	local foo = M.Object:new{foo = 'foo'}
-	assert_equals(foo.foo, 'foo')
-	local bar = foo:new{bar = 'bar'}
-	assert_equals(bar.foo, 'foo')
-	assert_equals(bar.bar, 'bar')
+    local foo = M.Object:new{foo = 'foo'}
+    assert_equals(foo.foo, 'foo')
+    local bar = foo:new{bar = 'bar'}
+    assert_equals(bar.foo, 'foo')
+    assert_equals(bar.bar, 'bar')
 end
 
 -- luacheck: ignore test_getterify
@@ -1279,7 +1279,7 @@ function test_path_join ()
         assert_equals(M.path_join(unpack(input)), output)
     end
 
-	assert_equals(M.path_join('foo', 'bar'), 'foo' .. M.PATH_SEP .. 'bar')
+    assert_equals(M.path_join('foo', 'bar'), 'foo' .. M.PATH_SEP .. 'bar')
 end
 
 -- luacheck: ignore test_path_make_abs
@@ -1341,7 +1341,7 @@ function test_path_normalise ()
         assert_equals(M.path_normalise(input), output)
     end
 
-	assert_equals(M.path_normalise './foo/./bar//', 'foo/bar')
+    assert_equals(M.path_normalise './foo/./bar//', 'foo/bar')
 end
 
 -- luacheck: ignore test_path_prettify
@@ -1374,7 +1374,7 @@ function test_path_prettify ()
         assert_equals(M.path_prettify(input), output)
     end
 
-	assert_equals(M.path_prettify(M.env_sub '${HOME}/foo/./bar//'), '~/foo/bar')
+    assert_equals(M.path_prettify(M.env_sub '${HOME}/foo/./bar//'), '~/foo/bar')
 end
 
 -- luacheck: ignore test_path_split
@@ -1421,10 +1421,10 @@ function test_path_split ()
         assert_equals(fname, output[2])
     end
 
-	assert_equals(
-		pack(M.path_split('foo' .. M.PATH_SEP .. 'bar')),
-		{'foo', 'bar', n = 2}
-	)
+    assert_equals(
+        pack(M.path_split('foo' .. M.PATH_SEP .. 'bar')),
+        {'foo', 'bar', n = 2}
+    )
 end
 
 -- luacheck: ignore test_project_dir
@@ -1487,13 +1487,13 @@ function test_elem_walk ()
     local id_flt = {AstElement = id}
     local nilify_flt = {AstElement = nilify}
 
-	assert_error_msg_matches(
-		'.-%f[%a]the AST is traversed "bottomup" or "topdown".',
-		M.elem_walk, doc, {
-			AstElement = id,
-			traverse = true
-		}
-	)
+    assert_error_msg_matches(
+        '.-%f[%a]the AST is traversed "bottomup" or "topdown".',
+        M.elem_walk, doc, {
+            AstElement = id,
+            traverse = true
+        }
+    )
 
     assert(doc, err)
     assert_equals(doc, M.elem_walk(doc, id_flt))
