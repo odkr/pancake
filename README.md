@@ -3,7 +3,7 @@
 Toolkit for writing [Lua filters](https://pandoc.org/lua-filters.html)
 for [Pandoc](https://pandoc.org).
 
-This is test.
+This is yet another test.
 
 *Pancake* aides with
 
