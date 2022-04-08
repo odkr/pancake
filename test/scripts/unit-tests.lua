@@ -1510,7 +1510,8 @@ function test_elem_walk ()
     local elem = Para{Str 'no'}
     local walked = M.elem_walk(elem, {
         Str = function () return Str 'yes' end,
-        Para = function (p) if stringify(p) == 'no' then return Null() end end
+        Para = function (p) if stringify(p) == 'no' then return Null() end end,
+        traverse = 'bottomup'
     })
     assert_equals(stringify(walked), 'yes')
     assert_false(pandoc.utils.equals(elem, walked))
