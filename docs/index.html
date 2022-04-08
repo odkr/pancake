@@ -105,7 +105,7 @@
 	</tr>
 	<tr>
 	<td class="name" nowrap><a href="#unprotect">unprotect (func)</a></td>
-	<td class="summary">Decorator that raises an error if a function returns a falsy value.</td>
+	<td class="summary">Decorator that raises an error if a function returns a fail value.</td>
 	</tr>
 </table>
 <h2><a href="#Tables">Tables </a></h2>
@@ -132,13 +132,13 @@
 	</tr>
 	<tr>
 	<td class="name" nowrap><a href="#walk">walk (val, func)</a></td>
-	<td class="summary">Walk a tree and apply a function to every node.</td>
+	<td class="summary">Walk a tree and apply a function to each node.</td>
 	</tr>
 </table>
 <h2><a href="#Strings">Strings </a></h2>
 <table class="function_list">
 	<tr>
-	<td class="name" nowrap><a href="#split">split (str, pattern[, max[, incl]])</a></td>
+	<td class="name" nowrap><a href="#split">split (str, pattern[, max[, incl[, plain=false]]])</a></td>
 	<td class="summary">Iterate over substrings of a string.</td>
 	</tr>
 </table>
@@ -160,24 +160,16 @@
 <h2><a href="#Metatables">Metatables </a></h2>
 <table class="function_list">
 	<tr>
-	<td class="name" nowrap><a href="#ignore_case">ignore_case</a></td>
+	<td class="name" nowrap><a href="#no_case">no_case</a></td>
 	<td class="summary">Metatable that makes indices case-insensitive.</td>
 	</tr>
 	<tr>
-	<td class="name" nowrap><a href="#ignore_case.__index">ignore_case.__index (tab, key)</a></td>
+	<td class="name" nowrap><a href="#no_case.__index">no_case.__index (tab, key)</a></td>
 	<td class="summary">Look up an item.</td>
 	</tr>
 	<tr>
-	<td class="name" nowrap><a href="#ignore_case.__newindex">ignore_case.__newindex (tab, key, val)</a></td>
+	<td class="name" nowrap><a href="#no_case.__newindex">no_case.__newindex (tab, key, val)</a></td>
 	<td class="summary">Store a new item.</td>
-	</tr>
-	<tr>
-	<td class="name" nowrap><a href="#sort_pairs">sort_pairs</a></td>
-	<td class="summary">Metatable that sorts key-value pairs.</td>
-	</tr>
-	<tr>
-	<td class="name" nowrap><a href="#sort_pairs.__pairs">sort_pairs.__pairs</a></td>
-	<td class="summary">Iterate over the key-value pairs of a table in a given order.</td>
 	</tr>
 </table>
 <h2><a href="#Prototypes">Prototypes </a></h2>
@@ -192,7 +184,7 @@
 	</tr>
 	<tr>
 	<td class="name" nowrap><a href="#Object:new">Object:new (...)</a></td>
-	<td class="summary">Create and initialise a table that delegates to an object.</td>
+	<td class="summary">Initialise an Object.</td>
 	</tr>
 	<tr>
 	<td class="name" nowrap><a href="#getterify">getterify (tab)</a></td>
@@ -268,7 +260,7 @@
 	</tr>
 	<tr>
 	<td class="name" nowrap><a href="#elem_walk">elem_walk (elem, filter)</a></td>
-	<td class="summary">Walk an AST and apply a filter to matching elements.</td>
+	<td class="summary">Walk an AST element and apply a filter to matching elements.</td>
 	</tr>
 </table>
 <h2><a href="#Options">Options </a></h2>
@@ -279,7 +271,7 @@
 	</tr>
 	<tr>
 	<td class="name" nowrap><a href="#Options:new">Options:new (...)</a></td>
-	<td class="summary">Create a new option parser.</td>
+	<td class="summary">Create a new option list.</td>
 	</tr>
 	<tr>
 	<td class="name" nowrap><a href="#Options:add">Options:add (...)</a></td>
@@ -287,11 +279,11 @@
 	</tr>
 	<tr>
 	<td class="name" nowrap><a href="#Options:parse">Options:parse (meta)</a></td>
-	<td class="summary">Read options from a metadata block.</td>
+	<td class="summary">Parse options from a metadata block (OO-interface).</td>
 	</tr>
 	<tr>
 	<td class="name" nowrap><a href="#opts_parse">opts_parse (meta, ...)</a></td>
-	<td class="summary">Read configuration options from a metadata block.</td>
+	<td class="summary">Parse options from a metadata block (function).</td>
 	</tr>
 </table>
 
@@ -532,7 +524,7 @@
     <ul>
         <pre class="example">&gt; <span class="keyword">local</span> <span class="global">assert</span> = asserter(<span class="keyword">nil</span>, vars_sub)
 &gt; <span class="keyword">function</span> foo ()
-&gt;    bar = <span class="string">'The bar'</span>
+&gt;    <span class="keyword">local</span> bar = <span class="string">'The bar'</span>
 &gt;    <span class="global">assert</span>(<span class="keyword">false</span>, <span class="string">'${bar} is to blame!'</span>)
 &gt; <span class="keyword">end</span>
 &gt; foo()
@@ -597,7 +589,7 @@ foo
     <strong>unprotect (func)</strong>
     </dt>
     <dd>
-    Decorator that raises an error if a function returns a falsy value.
+    Decorator that raises an error if a function returns a fail value.
 
     </ul>
     </ul>
@@ -907,7 +899,7 @@ a    b    c</pre>
     <strong>walk (val, func)</strong>
     </dt>
     <dd>
-    <p>Walk a tree and apply a function to every node.</p>
+    <p>Walk a tree and apply a function to each node.</p>
 
 <ul>
 <li>The tree is walked bottom-up.</li>
@@ -949,14 +941,14 @@ a    b    c</pre>
     <dl class="function">
     <dt>
     <a name = "split"></a>
-    <strong>split (str, pattern[, max[, incl]])</strong>
+    <strong>split (str, pattern[, max[, incl[, plain=false]]])</strong>
     </dt>
     <dd>
     Iterate over substrings of a string.
 
     <h3>Caveats:</h3>
     <ul>
-         Neither supports multi-byte characters nor frontier patterns.
+         Does not support multi-byte characters.
     </ul>
     </ul>
     </ul>
@@ -990,6 +982,11 @@ a    b    c</pre>
 
 <p>  By default, separators are <em>not</em> included.
          (<em>optional</em>)
+        </li>
+        <li><span class="parameter">plain</span>
+            <span class="types"><span class="type">bool</span></span>
+         Disable pattern matching facilities?
+         (<em>default</em> false)
         </li>
     </ul>
 
@@ -1250,8 +1247,8 @@ bar is bar.
 
     <dl class="function">
     <dt>
-    <a name = "ignore_case"></a>
-    <strong>ignore_case</strong>
+    <a name = "no_case"></a>
+    <strong>no_case</strong>
     </dt>
     <dd>
     Metatable that makes indices case-insensitive.
@@ -1268,7 +1265,7 @@ bar is bar.
 
     <h3>Usage:</h3>
     <ul>
-        <pre class="example">&gt; tab = <span class="global">setmetatable</span>({}, ignore_case)
+        <pre class="example">&gt; tab = <span class="global">setmetatable</span>({}, no_case)
 &gt; tab.FOO = <span class="string">'bar'</span>
 &gt; tab.foo
 bar</pre>
@@ -1276,8 +1273,8 @@ bar</pre>
 
 </dd>
     <dt>
-    <a name = "ignore_case.__index"></a>
-    <strong>ignore_case.__index (tab, key)</strong>
+    <a name = "no_case.__index"></a>
+    <strong>no_case.__index (tab, key)</strong>
     </dt>
     <dd>
     Look up an item.
@@ -1310,8 +1307,8 @@ bar</pre>
 
 </dd>
     <dt>
-    <a name = "ignore_case.__newindex"></a>
-    <strong>ignore_case.__newindex (tab, key, val)</strong>
+    <a name = "no_case.__newindex"></a>
+    <strong>no_case.__newindex (tab, key, val)</strong>
     </dt>
     <dd>
     Store a new item.
@@ -1339,76 +1336,6 @@ bar</pre>
 
 
 
-
-</dd>
-    <dt>
-    <a name = "sort_pairs"></a>
-    <strong>sort_pairs</strong>
-    </dt>
-    <dd>
-    Metatable that sorts key-value pairs.
-
-    </ul>
-    </ul>
-    </ul>
-    </ul>
-    </ul>
-
-
-
-
-
-    <h3>Usage:</h3>
-    <ul>
-        <pre class="example">&gt; tab = <span class="global">setmetatable</span>({c = <span class="number">3</span>, b = <span class="number">2</span>, a = <span class="number">1</span>}, sort_pairs)
-&gt; <span class="keyword">for</span> k, v <span class="keyword">in</span> <span class="global">pairs</span>(tab) <span class="keyword">do</span>
-&gt;     <span class="global">print</span>(k, v)
-&gt; <span class="keyword">end</span>
-a    <span class="number">1</span>
-b    <span class="number">2</span>
-c    <span class="number">3</span></pre>
-    </ul>
-
-</dd>
-    <dt>
-    <a name = "sort_pairs.__pairs"></a>
-    <strong>sort_pairs.__pairs</strong>
-    </dt>
-    <dd>
-    Iterate over the key-value pairs of a table in a given order.</p>
-
-<p> What order pairs are iterated over is defined by the <code>sort</code> metamethod.
- If no metamethod of that name is given, pairs are iterated over in
- lexical order. See <a href="index.html#sorted">sorted</a> for details.
-
-    </ul>
-    </ul>
-    </ul>
-    </ul>
-    </ul>
-
-    <ul>
-        <li><span class="parameter">tab</span>
-            <span class="types"><span class="type">tab</span></span>
-         A table.
-        </li>
-    </ul>
-
-
-
-
-    <h3>Usage:</h3>
-    <ul>
-        <pre class="example">&gt; sort = order{<span class="string">'c'</span>, <span class="string">'b'</span>, <span class="string">'a'</span>}
-&gt; mt = update({sort = sort}, sort_pairs)
-&gt; tab = <span class="global">setmetatable</span>({a = <span class="number">1</span>, b = <span class="number">2</span>, c = <span class="number">3</span>}, mt)
-&gt; <span class="keyword">for</span> k, v <span class="keyword">in</span> <span class="global">pairs</span>(tab) <span class="keyword">do</span>
-&gt;     <span class="global">print</span>(k, v)
-&gt; <span class="keyword">end</span>
-c    <span class="number">3</span>
-b    <span class="number">2</span>
-a    <span class="number">1</span></pre>
-    </ul>
 
 </dd>
 </dl>
@@ -1512,7 +1439,7 @@ bar</pre>
     <strong>Object:new (...)</strong>
     </dt>
     <dd>
-    Create and initialise a table that delegates to an object.</p>
+    Initialise an Object.</p>
 
 <p> <code>Object:new(...)</code> is equivalent to <code>update(Object:clone(), ...)</code>.
 
@@ -2311,7 +2238,7 @@ foo    bar</pre>
     <strong>elem_walk (elem, filter)</strong>
     </dt>
     <dd>
-    <p>Walk an AST and apply a filter to matching elements.</p>
+    <p>Walk an AST element and apply a filter to matching elements.</p>
 
 <p> Differences to Pandoc&rsquo;s walkers:</p>
 
@@ -2392,7 +2319,7 @@ foo    bar</pre>
     <strong>Options:new (...)</strong>
     </dt>
     <dd>
-    <p>Create a new option parser.</p>
+    <p>Create a new option list.</p>
 
 <pre><code>parser = Options:new{name = 'foo'}
 </code></pre>
@@ -2474,7 +2401,7 @@ parser:add{
     <strong>Options:parse (meta)</strong>
     </dt>
     <dd>
-    Read options from a metadata block.
+    Parse options from a metadata block (OO-interface).
 
     </ul>
     </ul>
@@ -2541,7 +2468,7 @@ number</pre>
     <strong>opts_parse (meta, ...)</strong>
     </dt>
     <dd>
-    Read configuration options from a metadata block.</p>
+    Parse options from a metadata block (function).</p>
 
 <p> <h3>Option definition syntax:</h3></p>
 
@@ -2671,7 +2598,7 @@ number</pre>
 </div> <!-- id="main" -->
 <div id="about">
 <i>generated by <a href="http://github.com/stevedonovan/LDoc">LDoc 1.4.6</a></i>
-<i style="float:right;">Last updated 2022-04-04 22:20:45 </i>
+<i style="float:right;">Last updated 2022-04-08 11:30:01 </i>
 </div> <!-- id="about" -->
 </div> <!-- id="container" -->
 </body>
