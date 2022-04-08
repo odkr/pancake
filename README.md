@@ -15,6 +15,6 @@ Pancake aides with
 
 See its [documentation](docs/index.html) for details.
 
-It is lightweight, well-documentend, and has been tested with Pandoc v2.9–v2.18.
+It is lightweight, well-documented, and has been tested with Pandoc v2.9–v2.18.
 However, it aims to work in any version ≥ 2.0.4.
 

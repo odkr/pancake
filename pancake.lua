@@ -133,7 +133,7 @@ do
     -- that a value is of one of the given types (e.g., 'string|table'
     -- checks whether the value is a string or a table). '*' is short
     -- for the list of all types save for `nil`. '?T' is short for
-	-- 'T|nil' (e.g., '?table' is short for 'table|nil').
+    -- 'T|nil' (e.g., '?table' is short for 'table|nil').
     --
     -- In [Extended Backus-Naur Form](https://en.wikipedia.org/wiki/EBNF):
     --
@@ -622,41 +622,41 @@ walk = type_check('*', 'function', '?table')(
 split = type_check('string', 'string', '?number', '?string', '?boolean')(
     function (str, pattern, max, incl, plain)
         assert(not incl or incl == 'l' or incl == 'r', 'expecting "l" or "r".')
-		local pos = 1
-		local pss = 1
-		local emp = 0
+        local pos = 1
+        local pss = 1
+        local emp = 0
         local n = 1
         return function ()
             if not pos then return end
             local sub, s, e
             if not max or n < max then s, e = str:find(pattern, pos, plain) end
             if s then
-				if s <= e then
-	                if not incl then
-						sub = str:sub(pos - emp, s - 1)
-	                elseif incl == 'l' then
-						sub = str:sub(pss, s - 1)
-						pss = s
-	                else
-						sub = str:sub(pos - emp, e)
-	                end
-	                pos = e + 1
-					emp = 0
-				else
-					if incl == 'l' then
-						sub = str:sub(pss, s)
-						pss = s + 1
-					else
-						sub = str:sub(pos - emp, e)
-					end
-					pos = s + 1
-					emp = 1
-				end
+                if s <= e then
+                    if not incl then
+                        sub = str:sub(pos - emp, s - 1)
+                    elseif incl == 'l' then
+                        sub = str:sub(pss, s - 1)
+                        pss = s
+                    else
+                        sub = str:sub(pos - emp, e)
+                    end
+                    pos = e + 1
+                    emp = 0
+                else
+                    if incl == 'l' then
+                        sub = str:sub(pss, s)
+                        pss = s + 1
+                    else
+                        sub = str:sub(pos - emp, e)
+                    end
+                    pos = s + 1
+                    emp = 1
+                end
             else
                 if incl == 'l' then
-					sub = str:sub(pss)
+                    sub = str:sub(pss)
                 else
-					sub = str:sub(pos - emp)
+                    sub = str:sub(pos - emp)
                 end
                 pos = nil
             end
@@ -800,7 +800,7 @@ do
     -- interpreted as a variable name and the expression is *not* replaced
     -- with the value of a variable. Moreover, any series of *n* dollar signs
     -- that precedes a pair of braces (e.g., `$${...}`) is replaced with
-	-- *n* – 1 dollar signs.
+    -- *n* – 1 dollar signs.
     --
     --    > vars_sub(
     --    >     '$${var} costs $1.',
@@ -1957,62 +1957,62 @@ do
         Pandoc = walk_doc
     }
 
-	-- Recurse into the child nodes of an element.
-	--
-	-- @caveats The element is modified *in-place*.
-	--
-	-- @tparam pandoc.AstElement elem A Pandoc AST element.
-	-- @string et The element's type.
-	-- @tparam {string=fun,...} filter A filter.
-	-- @tparam {string=bool,...} _seen Elements that have already been seen.
-	local function recurse (elem, et, filter, _seen)
-		local walker = walkers[et]
+    -- Recurse into the child nodes of an element.
+    --
+    -- @caveats The element is modified *in-place*.
+    --
+    -- @tparam pandoc.AstElement elem A Pandoc AST element.
+    -- @string et The element's type.
+    -- @tparam {string=fun,...} filter A filter.
+    -- @tparam {string=bool,...} _seen Elements that have already been seen.
+    local function recurse (elem, et, filter, _seen)
+        local walker = walkers[et]
         if walker then
             walker(elem, filter, _seen)
         elseif elem.content then
             walk_table(elem.content, filter, _seen)
         end
-	end
+    end
 
     --- Walk an AST element and apply a filter to matching elements.
     --
     -- <h3>Differences to Pandoc's Walkers:</h3>
     --
     -- * The filter is applied to the given element itself.
-	-- * Changes to the AST, other than returning a new element, are ignored.
-	-- * The AST is traversed bottom-up or top-down, but *not* typewise.
-	-- * Support for filter keyword 'AstElement', which matches *any* element,
-	--   but *not* lists of elements.
+    -- * Changes to the AST, other than returning a new element, are ignored.
+    -- * The AST is traversed bottom-up or top-down, but *not* typewise.
+    -- * Support for filter keyword 'AstElement', which matches *any* element,
+    --   but *not* lists of elements.
     -- * Documents and metadata are traversed, too.
-	--
-	-- <h3>Direction of Traversal:</h3>
-	--
-	-- Depends on the filter's `traverse` field:
-	--
-	-- * `bottomup`: Traverse the AST bottom-up. (*default*)
-	-- * `topdown`: Traverse the AST top-down.
-	--
-	-- The AST is traversed left-to-right either way.
+    --
+    -- <h3>Direction of Traversal:</h3>
+    --
+    -- Depends on the filter's `traverse` field:
+    --
+    -- * `bottomup`: Traverse the AST bottom-up. (*default*)
+    -- * `topdown`: Traverse the AST top-down.
+    --
+    -- The AST is traversed left-to-right either way.
     --
     -- @tparam pandoc.AstElement elem A Pandoc AST element.
     -- @tparam {string=func,...} filter A filter.
     -- @return Typically but not necessarily, a new Pandoc AST element.
     --
     -- @function elem_walk
-	-- @fixme Traversal directions are not unit-tested.
+    -- @fixme Traversal directions are not unit-tested.
     elem_walk = type_check('*', 'table', '?table')(
         function (elem, filter, _seen)
             if not _seen then _seen = {} end
             assert(not _seen[elem], 'cycle in data tree.')
-			local traverse = filter.traverse or 'bottomup'
-			assert(traverse == 'bottomup' or traverse == 'topdown',
-		           'the AST is traversed "bottomup" or "topdown".')
+            local traverse = filter.traverse or 'bottomup'
+            assert(traverse == 'bottomup' or traverse == 'topdown',
+                   'the AST is traversed "bottomup" or "topdown".')
             local ets = {elem_type(elem)}
             local et = ets[1]
             if et then
                 _seen[elem] = true
                 elem = elem_clone(elem)
-				if traverse == 'bottomup' then recurse(elem, et, filter, _seen) end
+                if traverse == 'bottomup' then recurse(elem, et, filter, _seen) end
                 for i = 1, #ets do
                     local func = filter[ets[i]]
                     if func then
@@ -2020,7 +2020,7 @@ do
                         if new ~= nil then elem = new end
                     end
                 end
-				if traverse == 'topdown' then recurse(elem, et, filter, _seen) end
+                if traverse == 'topdown' then recurse(elem, et, filter, _seen) end
             elseif type(elem) == 'table' then
                 _seen[elem] = true
                 if elem.clone then elem = elem:clone()
