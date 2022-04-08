@@ -14,7 +14,7 @@ See its [GitHub repository](https://github.com/odkr/pancake/) for details.]]
 
 readme = 'README.md'
 format = 'discount'
-dir = 'docs'
+dir = 'doc'
 
 backtick_references = false
 
