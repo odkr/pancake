@@ -1989,8 +1989,8 @@ do
     --
     -- Depends on the filter's `traverse` field:
     --
-    -- * `bottomup`: Traverse the AST bottom-up. (*default*)
-    -- * `topdown`: Traverse the AST top-down.
+    -- * `bottomup`: Traverse the AST bottom-up.
+    -- * `topdown`: Traverse the AST top-down. (*default*)
     --
     -- The AST is traversed left-to-right either way.
     --
@@ -2004,7 +2004,7 @@ do
         function (elem, filter, _seen)
             if not _seen then _seen = {} end
             assert(not _seen[elem], 'cycle in data tree.')
-            local traverse = filter.traverse or 'bottomup'
+            local traverse = filter.traverse or 'topdown'
             assert(traverse == 'bottomup' or traverse == 'topdown',
                    'the AST is traversed "bottomup" or "topdown".')
             local ets = {elem_type(elem)}
