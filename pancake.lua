@@ -2,6 +2,43 @@
 -- Toolkit for writing [Lua filters](https://pandoc.org/lua-filters.html)
 -- for [Pandoc](https://pandoc.org).
 --
+-- Pancake has been tested with Pandoc v2.9–v2.18.
+-- However, it aims to work in any version ≥ 2.0.4.
+--
+--     -- Simple example of loading Pancake.
+--     do
+--         local path_sep = packange.config:sub(1, 1)
+--         local script_dir = PANDOC_SCRIPT_FILE:match('(.*)' .. path_sep)
+--         package.path = package.path .. ';' ..
+--             table.concat(
+--                 {script_dir, 'path', 'to', 'modules', '?.lua'},
+--                 path_sep
+--             )
+--     end
+--     pancake = require 'pancake'
+--
+--     -- Adding multiple directories to `package.path` and using LuaRocks.
+--     local NAME = 'foo.lua'
+--     local VERSION = '1.2.3'
+--
+--     do
+--         local path_sep = package.config:sub(1, 1)
+--         local script_dir = PANDOC_SCRIPT_FILE:match('(.*)' .. path_sep)
+--         local function path_join(...) return table.concat({...}, path_sep) end
+--         local rocks_dir = path_join('share', 'lua', '5.4', '?.lua')
+--         package.path = table.concat({package.path,
+--             path_join(script_dir, rocks_dir),
+--             path_join(script_dir, NAME .. '-' .. VERSION, rocks_dir)
+--         }, ';')
+--     end
+--     local pancake = require 'pancake'
+--
+-- Pancake automatically loads Pandoc's modules (e.g., `pandoc.utils`,
+-- `pandoc.system`, etc.) into the global namespace if you are using
+-- a version of Pandoc that does not do this automatically. So you
+-- may want to load it *before* setting up a function or module
+-- environment using `_ENV`.
+--
 -- @author Odin Kroeger
 -- @copyright 2022 Odin Kroeger
 -- @license MIT
@@ -95,8 +132,8 @@ do
     -- Give one or more Lua type names separated by a pipe ('|') to check
     -- that a value is of one of the given types (e.g., 'string|table'
     -- checks whether the value is a string or a table). '*' is short
-    -- for the list of all types but `nil`. '?T' is short for 'T|nil'
-    -- (e.g., '?table' is short for 'table|nil').
+    -- for the list of all types save for `nil`. '?T' is short for
+	-- 'T|nil' (e.g., '?table' is short for 'table|nil').
     --
     -- In [Extended Backus-Naur Form](https://en.wikipedia.org/wiki/EBNF):
     --
@@ -162,7 +199,7 @@ end
 
 --- Decorator that adds type checks to a function.
 --
--- Only adds type checks if the global variable `DEBUG` is truthy.
+-- Only adds type checks if the global `CHECK_TYPES` evaluates as true.
 --
 -- <h3>Type declaration grammar:</h3>
 --
@@ -192,7 +229,7 @@ end
 -- @function type_check
 function type_check (...)
     local decls = pack(...)
-    if not _G.DEBUG then
+    if not _G.CHECK_TYPES then
         return function (...) return ... end
     end
     return function (func)
@@ -224,8 +261,8 @@ end
 -- See <http://lua-users.org/wiki/FinalizedExceptions>.
 --
 -- @func[opt] fin Called before an error is thrown.
--- @func[opt] msgh Takes the error and the caller's variables,
---  and returns a new error.
+-- @func[opt] msgh Given the error and the caller's variables,
+--  should return a new error.
 -- @treturn func An assertion function.
 --
 -- @usage
@@ -316,7 +353,7 @@ unprotect = type_check('function')(
 --- Tables
 -- @section
 
---- Make a *deep* copy of a value.
+--- Make a deep copy of a value.
 --
 -- * Copies metatables.
 -- * Handles cyclic data.
@@ -762,10 +799,11 @@ do
     -- If a braced string is preceded by two or more dollar signs, it is *not*
     -- interpreted as a variable name and the expression is *not* replaced
     -- with the value of a variable. Moreover, any series of *n* dollar signs
-    -- is replaced with *n* – 1 dollar signs.
+    -- that precedes a pair of braces (e.g., `$${...}`) is replaced with
+	-- *n* – 1 dollar signs.
     --
     --    > vars_sub(
-    --    >     '$${var} costs $$1.',
+    --    >     '$${var} costs $1.',
     --    >     {var = 'foo'}
     --    > )
     --    ${var} costs $1.
@@ -781,7 +819,7 @@ do
     --    baz is baz.
     --
     -- If a variable name is followed by a pipe symbol ('|'), then the string
-    -- between that pipe symbol and the next pipe symbol/the closing brace is
+    -- between that pipe symbol and the next pipe symbol/closing brace is
     -- interpreted as a function name, this function is then given the value
     -- of that variable, and the whole expression is replaced with the
     -- first value the function returns.
@@ -809,7 +847,7 @@ do
     --
     -- The expression as a whole must evaluate either to a string or a number.
     --
-    -- Variables can also be looked using a function. The function is run
+    -- Variables can also be looked up by a function. The function is run
     -- in protected mode. If it throws an error, `vars_sub` will return
     -- `nil` and the error object thrown by the function. Note, this mode
     -- does *not* support multi-dimensional lookups (`${foo.bar}`),
@@ -843,7 +881,7 @@ do
                 error(format('expected function or table, got %s.', t), 2)
             end
             return str:gsub('%f[%$]%${%s*(.-)%s*}', repl)
-                      :gsub('%$(%$*)', '%1'), nil
+                      :gsub('(%$*)%$(%b{})', '%1%2'), nil
         end
     ))
 end
@@ -1141,7 +1179,7 @@ do
     )
 end
 
---- Read a file at once.
+--- Read a file.
 --
 -- @string fname A filename.
 -- @treturn[1] string The contents of the file.
@@ -1189,7 +1227,7 @@ do
         return file:close()
     end
 
-    --- Write data to a file at once.
+    --- Write data to a file.
     --
     -- If a file of that name exists already, it is overwritten.
     --
@@ -1680,7 +1718,7 @@ end
 --- Elements
 -- @section
 
---- Make a *shallow* copy of a Pandoc AST element.
+--- Make a shallow copy of a Pandoc AST element.
 --
 -- @tparam pandoc.AstElement elem A Pandoc AST element.
 -- @treturn pandoc.AstElement The clone.
@@ -1938,16 +1976,16 @@ do
 
     --- Walk an AST element and apply a filter to matching elements.
     --
-    -- <h3>Differences to Pandoc's Walkers</h3>
+    -- <h3>Differences to Pandoc's Walkers:</h3>
     --
     -- * The filter is applied to the given element itself.
 	-- * Changes to the AST, other than returning a new element, are ignored.
 	-- * The AST is traversed bottom-up or top-down, but *not* typewise.
-	-- * Support for type 'AstElement', which matches every AST element,
-	--   but not lists of AST elements.
+	-- * Support for filter keyword 'AstElement', which matches *any* element,
+	--   but *not* lists of elements.
     -- * Documents and metadata are traversed, too.
 	--
-	-- <h3>Direction of Traversal</h3>
+	-- <h3>Direction of Traversal:</h3>
 	--
 	-- Depends on the filter's `traverse` field:
 	--
@@ -1998,6 +2036,8 @@ end
 
 --- Options
 -- @section
+-- @todo Add more option types, above all, 'map' and 'bool'.
+-- @todo Maybe rename 'string' to 'str' (use names from Pandoc).
 
 do
     -- luacheck: ignore stringify
@@ -2188,9 +2228,9 @@ do
         end
     )
 
-    --- Parse options from a metadata block (function).
+    --- Parse options from a metadata block (function interface).
     --
-    -- <h3>Option definition syntax:</h3>
+    -- <h3>Option Definition Syntax:</h3>
     --
     -- An option definition is a table with the following keys:
     --
@@ -2199,7 +2239,7 @@ do
     --  * `parse`: (***func***) A parser. (*optional*)
     --  * `prefix`: (***@{string}***) A prefix. (*optional*)
     --
-    -- <h3>Mapping of option names to metadata fieldnames:</h3>
+    -- <h3>Mapping of Option Names to Metadata Fieldnames:</h3>
     --
     -- The name of the metadata field is the name of the option with
     -- underscores replaced by dashes. If the option has a prefix,
@@ -2211,7 +2251,7 @@ do
     --    fieldname = name:gsub('_', '-')
     --    if prefix then fieldname = prefix .. '-' .. fieldname end
     --
-    -- <h3>Type declaration grammar:</h3>
+    -- <h3>Type Declaration Grammar:</h3>
     --
     -- Configuration values can be of one of three types:
     --
@@ -2239,11 +2279,10 @@ do
     --
     -- No type checks or conversions are performed for `nil`.
     --
-    -- <h3>Parse protocol:</h3>
+    -- <h3>Parse Protocol:</h3>
     --
-    -- Parsers take the *converted* value and either
-    -- return a new value or `nil` and an error message.
-    --
+    -- Parsers are given the converted value and should return
+    -- either a new value or `nil` and an error message.
     -- They are *not* called for `nil`.
     --
     -- @caveats
