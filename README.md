@@ -39,7 +39,8 @@ You use *Pancake* at your own risk.
 1. Download the
    [latest release](https://github.com/odkr/pancake/releases/latest).
 2. Unpack it.
-3. Move the `pancake.lua` somewhere from where your filter can load it.
+3. Move `pancake.lua` to a directory from where your filter can load it.
+
 
 ## Documentation
 
