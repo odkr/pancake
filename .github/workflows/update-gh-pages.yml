@@ -1,4 +1,4 @@
-name: Update GitHub pages
+name: Update GitHub Pages
 
 on:
   push:
@@ -9,20 +9,19 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out
+      - name: Check-out
         uses: actions/checkout@v2
 
-      - name: Install LDoc
+      - name: LDoc
         run: |
           sudo apt-get update
           sudo apt-get install --yes lua-ldoc
 
-      - name: Generate documentation
+      - name: Documentation
         run: make docs
 
-      - name: Publish current workdir (which contains generated content) to GitHub Pages
+      - name: GitHub Pages
         uses: rayluo/github-pages-overwriter@v1.2
 
         with:
-          source-directory: ./docs
-          target-branch: gh_pages
+          source-directory: ./doc
