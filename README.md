@@ -28,7 +28,8 @@ your operating system vendor may use an older version. Notably, the version
 of Pandoc available in the package repository of Debian v10 ("Buster") only
 supports Lua v5.1.
 
-That said, it has only been tested with Pandoc v2.9–v2.18 on Linux and macOS.
+That said, *Pancake* has only been tested with Pandoc v2.9–v2.18
+and only on Linux and macOS.
 
 
 ## Installation
