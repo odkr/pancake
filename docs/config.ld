@@ -1,12 +1,16 @@
 project = 'Pancake'
 description = 'Toolkit to write Lua filters for Pandoc.'
-full_description = [[Provides:
+full_description = [[Pancake aides with
 
-* parsing of document metadata
+* maintaining compatibility accross different versions of Pandoc
+* working with complex data structures
 * error handling
-* convenience functions for lists, mappings, strings, paths, and file I/O
-* a simple but powerful OO-model
-* an API that is stable accross different versions of Pandoc]]
+* string interpolation
+* object-oriented programming
+* file I/O and filesystem interaction
+* metadata parsing
+
+See its [GitHub repository](https://github.com/odkr/pancake/) for details.]]
 
 readme = 'README.md'
 format = 'discount'

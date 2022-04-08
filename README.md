@@ -1,11 +1,20 @@
 # Pancake
 
-Toolkit for writing Lua filters in Pandoc.
+Toolkit for writing [Lua filters](https://pandoc.org/lua-filters.html)
+for [Pandoc](https://pandoc.org).
 
-Only useful for complex filters.
+Pancake aides with
 
-Takes care of loading Pandoc modules in older versions of Pandoc,
-but modifies the global environment to do so.
+* maintaining compatibility accross different versions of Pandoc
+* working with complex data structures
+* error handling
+* string interpolation
+* object-oriented programming
+* file I/O and filesystem interaction
+* metadata parsing
 
-If you set up a custom global environment,
-you should `require` pancake before doing so.
+See its [documentation](docs/index.html) for details.
+
+It is lightweight, well-documentend, and has been tested with Pandoc v2.9–v2.18.
+However, it aims to work in any version ≥ 2.0.4.
+

@@ -61,7 +61,45 @@
 <h1>Module <code>pancake</code></h1>
 <p>Toolkit for writing <a href="https://pandoc.org/lua-filters.html">Lua filters</a>
  for <a href="https://pandoc.org">Pandoc</a>.</p>
-<p></p>
+<p> Pancake has been tested with Pandoc v2.9–v2.18.
+ However, it aims to work in any version ≥ 2.0.4.</p>
+
+<pre>
+<span class="comment">-- Simple example of loading Pancake.
+</span><span class="keyword">do</span>
+    <span class="keyword">local</span> path_sep = packange.config:sub(<span class="number">1</span>, <span class="number">1</span>)
+    <span class="keyword">local</span> script_dir = PANDOC_SCRIPT_FILE:match(<span class="string">'(.*)'</span> .. path_sep)
+    <span class="global">package</span>.path = <span class="global">package</span>.path .. <span class="string">';'</span> ..
+        <span class="global">table</span>.concat(
+            {script_dir, <span class="string">'path'</span>, <span class="string">'to'</span>, <span class="string">'modules'</span>, <span class="string">'?.lua'</span>},
+            path_sep
+        )
+<span class="keyword">end</span>
+pancake = <span class="global">require</span> <span class="string">'pancake'</span>
+
+<span class="comment">-- Adding multiple directories to `package.path` and using LuaRocks.
+</span><span class="keyword">local</span> NAME = <span class="string">'foo.lua'</span>
+<span class="keyword">local</span> VERSION = <span class="string">'1.2.3'</span>
+
+<span class="keyword">do</span>
+    <span class="keyword">local</span> path_sep = <span class="global">package</span>.config:sub(<span class="number">1</span>, <span class="number">1</span>)
+    <span class="keyword">local</span> script_dir = PANDOC_SCRIPT_FILE:match(<span class="string">'(.*)'</span> .. path_sep)
+    <span class="keyword">local</span> <span class="keyword">function</span> path_join(...) <span class="keyword">return</span> <span class="global">table</span>.concat({...}, path_sep) <span class="keyword">end</span>
+    <span class="keyword">local</span> rocks_dir = path_join(<span class="string">'share'</span>, <span class="string">'lua'</span>, <span class="string">'5.4'</span>, <span class="string">'?.lua'</span>)
+    <span class="global">package</span>.path = <span class="global">table</span>.concat({<span class="global">package</span>.path,
+        path_join(script_dir, rocks_dir),
+        path_join(script_dir, NAME .. <span class="string">'-'</span> .. VERSION, rocks_dir)
+    }, <span class="string">';'</span>)
+<span class="keyword">end</span>
+<span class="keyword">local</span> pancake = <span class="global">require</span> <span class="string">'pancake'</span>
+</pre>
+
+
+<p> Pancake automatically loads Pandoc&rsquo;s modules (e.g., <code>pandoc.utils</code>,
+ <code>pandoc.system</code>, etc.) into the global namespace if you are using
+ a version of Pandoc that does not do this automatically. So you
+ may want to load it <em>before</em> setting up a function or module
+ environment using <code>_ENV</code>.</p>
     <h3>Info:</h3>
     <ul>
         <li><strong>Copyright</strong>: 2022 Odin Kroeger</li>
@@ -112,7 +150,7 @@
 <table class="function_list">
 	<tr>
 	<td class="name" nowrap><a href="#copy">copy (val)</a></td>
-	<td class="summary">Make a <em>deep</em> copy of a value.</td>
+	<td class="summary">Make a deep copy of a value.</td>
 	</tr>
 	<tr>
 	<td class="name" nowrap><a href="#keys">keys (tab)</a></td>
@@ -132,7 +170,7 @@
 	</tr>
 	<tr>
 	<td class="name" nowrap><a href="#walk">walk (val, func)</a></td>
-	<td class="summary">Walk a tree and apply a function to each node.</td>
+	<td class="summary">Apply a function to each node of a tree.</td>
 	</tr>
 </table>
 <h2><a href="#Strings">Strings </a></h2>
@@ -203,11 +241,11 @@
 	</tr>
 	<tr>
 	<td class="name" nowrap><a href="#file_read">file_read (fname)</a></td>
-	<td class="summary">Read a file at once.</td>
+	<td class="summary">Read a file.</td>
 	</tr>
 	<tr>
 	<td class="name" nowrap><a href="#file_write">file_write (fname, ...)</a></td>
-	<td class="summary">Write data to a file at once.</td>
+	<td class="summary">Write data to a file.</td>
 	</tr>
 	<tr>
 	<td class="name" nowrap><a href="#tmp_fname">tmp_fname ([dir[, templ='tmp-XXXXXX']])</a></td>
@@ -252,7 +290,7 @@
 <table class="function_list">
 	<tr>
 	<td class="name" nowrap><a href="#elem_clone">elem_clone (elem)</a></td>
-	<td class="summary">Make a <em>shallow</em> copy of a Pandoc AST element.</td>
+	<td class="summary">Make a shallow copy of a Pandoc AST element.</td>
 	</tr>
 	<tr>
 	<td class="name" nowrap><a href="#elem_type">elem_type (elem)</a></td>
@@ -283,7 +321,7 @@
 	</tr>
 	<tr>
 	<td class="name" nowrap><a href="#opts_parse">opts_parse (meta, ...)</a></td>
-	<td class="summary">Parse options from a metadata block (function).</td>
+	<td class="summary">Parse options from a metadata block (function interface).</td>
 	</tr>
 </table>
 
@@ -348,8 +386,8 @@
 <p> Give one or more Lua type names separated by a pipe (&lsquo;|&rsquo;) to check
  that a value is of one of the given types (e.g., &lsquo;string|table&rsquo;
  checks whether the value is a string or a table). &lsquo;*&rsquo; is short
- for the list of all types but <code>nil</code>. &lsquo;?T&rsquo; is short for &rsquo;T|nil'
- (e.g., &lsquo;?table&rsquo; is short for &lsquo;table|nil&rsquo;).</p>
+ for the list of all types save for <code>nil</code>. &lsquo;?T&rsquo; is short for
+ &rsquo;T|nil' (e.g., &lsquo;?table&rsquo; is short for &lsquo;table|nil&rsquo;).</p>
 
 <p> In <a href="https://en.wikipedia.org/wiki/EBNF">Extended Backus-Naur Form</a>:</p>
 
@@ -424,7 +462,7 @@
     <dd>
     Decorator that adds type checks to a function.</p>
 
-<p> Only adds type checks if the global variable <code>DEBUG</code> is truthy.</p>
+<p> Only adds type checks if the global <code>CHECK_TYPES</code> evaluates as true.</p>
 
 <p> <h3>Type declaration grammar:</h3></p>
 
@@ -505,8 +543,8 @@
         </li>
         <li><span class="parameter">msgh</span>
             <span class="types"><span class="type">func</span></span>
-         Takes the error and the caller&rsquo;s variables,
-  and returns a new error.
+         Given the error and the caller&rsquo;s variables,
+  should return a new error.
          (<em>optional</em>)
         </li>
     </ul>
@@ -643,7 +681,7 @@ stack traceback:
     <strong>copy (val)</strong>
     </dt>
     <dd>
-    <p>Make a <em>deep</em> copy of a value.</p>
+    <p>Make a deep copy of a value.</p>
 
 <ul>
 <li>Copies metatables.</li>
@@ -863,7 +901,7 @@ a    <span class="number">1</span></pre>
     <ul>
         <li><span class="parameter">iter</span>
             <span class="types"><span class="type">func</span></span>
-         An iterator. Must accept, but not honour,
+         An iterator. Must accept, though not honour,
   the same arguments as <a href="https://www.lua.org/manual/5.1/manual.html#pdf-next">next</a>.
         </li>
         <li><span class="parameter">tab</span>
@@ -899,11 +937,11 @@ a    b    c</pre>
     <strong>walk (val, func)</strong>
     </dt>
     <dd>
-    <p>Walk a tree and apply a function to each node.</p>
+    <p>Apply a function to each node of a tree.</p>
 
 <ul>
+<li>Nodes are only changed if the function returns a non-<code>nil</code> value.</li>
 <li>The tree is walked bottom-up.</li>
-<li>Nodes are only changed if the function returns a value other than <code>nil</code>.</li>
 <li>Handles cyclic data structures.</li>
 </ul>
 
@@ -972,15 +1010,9 @@ a    b    c</pre>
         </li>
         <li><span class="parameter">incl</span>
             <span class="types"><a class="type" href="https://www.lua.org/manual/5.1/manual.html#5.4">string</a></span>
-         Include separators in substrings?</p>
-
-<ul>
-<li>&lsquo;l&rsquo; includes them on the left,</li>
-<li>&lsquo;r&rsquo; on the right.</li>
-</ul>
-
-
-<p>  By default, separators are <em>not</em> included.
+         Include separator in substrings?
+  &lsquo;l&rsquo; includes it on the left,
+  &lsquo;r&rsquo; on the right.
          (<em>optional</em>)
         </li>
         <li><span class="parameter">plain</span>
@@ -1091,10 +1123,11 @@ foo is bar.
 <p> If a braced string is preceded by two or more dollar signs, it is <em>not</em>
  interpreted as a variable name and the expression is <em>not</em> replaced
  with the value of a variable. Moreover, any series of <em>n</em> dollar signs
- is replaced with <em>n</em> – 1 dollar signs.</p>
+ that precedes a pair of braces (e.g., <code>$${...}</code>) is replaced with
+ <em>n</em> – 1 dollar signs.</p>
 
 <pre><code>&gt; vars_sub(
-&gt;     '$${var} costs $$1.',
+&gt;     '$${var} costs $1.',
 &gt;     {var = 'foo'}
 &gt; )
 ${var} costs $1.
@@ -1112,7 +1145,7 @@ baz is baz.
 </code></pre>
 
 <p> If a variable name is followed by a pipe symbol (&lsquo;|&rsquo;), then the string
- between that pipe symbol and the next pipe symbol/the closing brace is
+ between that pipe symbol and the next pipe symbol/closing brace is
  interpreted as a function name, this function is then given the value
  of that variable, and the whole expression is replaced with the
  first value the function returns.</p>
@@ -1133,7 +1166,7 @@ bar is bar!
 <pre><code>&gt; vars_sub(
 &gt;     '${foo|barify} is bar.', {
 &gt;         foo = '${bar}',
-&gt;         bar = 'baz'
+&gt;         bar = 'baz',
 &gt;         barify = function (s) return s:gsub('baz', 'bar') end
 &gt;     }
 &gt; )
@@ -1142,7 +1175,7 @@ bar is bar.
 
 <p> The expression as a whole must evaluate either to a string or a number.</p>
 
-<p> Variables can also be looked using a function. The function is run
+<p> Variables can also be looked up by a function. The function is run
  in protected mode. If it throws an error, <code>vars_sub</code> will return
  <code>nil</code> and the error object thrown by the function. Note, this mode
  does <em>not</em> support multi-dimensional lookups (<code>${foo.bar}</code>),
@@ -1659,7 +1692,7 @@ BAM!</pre>
     <strong>file_read (fname)</strong>
     </dt>
     <dd>
-    Read a file at once.
+    Read a file.
 
     </ul>
     </ul>
@@ -1703,7 +1736,7 @@ BAM!</pre>
     <strong>file_write (fname, ...)</strong>
     </dt>
     <dd>
-    Write data to a file at once.</p>
+    Write data to a file.</p>
 
 <p> If a file of that name exists already, it is overwritten.
 
@@ -2007,7 +2040,7 @@ foo/bar</pre>
 
     <h3>Usage:</h3>
     <ul>
-        <pre class="example">&gt; path_prettify(env_sub <span class="string">'$HOME/foo/./bar//'</span>)
+        <pre class="example">&gt; path_prettify(env_sub <span class="string">'${HOME}/foo/./bar//'</span>)
 ~/foo/bar</pre>
     </ul>
 
@@ -2159,7 +2192,7 @@ foo    bar</pre>
     <strong>elem_clone (elem)</strong>
     </dt>
     <dd>
-    Make a <em>shallow</em> copy of a Pandoc AST element.
+    Make a shallow copy of a Pandoc AST element.
 
     </ul>
     </ul>
@@ -2238,20 +2271,31 @@ foo    bar</pre>
     <strong>elem_walk (elem, filter)</strong>
     </dt>
     <dd>
-    <p>Walk an AST element and apply a filter to matching elements.</p>
+    Walk an AST element and apply a filter to matching elements.</p>
 
-<p> Differences to Pandoc&rsquo;s walkers:</p>
+<p> <h3>Differences to Pandoc&rsquo;s Walkers:</h3></p>
 
 <ul>
-<li>Walks AST elements of any type (inluding documents and metadata).</li>
-<li>Walks the AST bottom-up.</li>
-<li>Does <em>not</em> accept the <code>traverse</code> keyword.</li>
-<li>Applies the filter to the given element itself.</li>
-<li>Allows functions in the filter to return data of arbitrary types.</li>
-<li>Never modifies the original element.</li>
-<li>Accepts the type &lsquo;AstElement&rsquo;, which matches any element.</li>
+<li>The filter is applied to the given element itself.</li>
+<li>Changes to the AST, other than returning a new element, are ignored.</li>
+<li>The AST is traversed bottom-up or top-down, but <em>not</em> typewise.</li>
+<li>Support for filter keyword &lsquo;AstElement&rsquo;, which matches <em>any</em> element,
+but <em>not</em> lists of elements.</li>
+<li>Documents and metadata are traversed, too.</li>
 </ul>
 
+
+<p> <h3>Direction of Traversal:</h3></p>
+
+<p> Depends on the filter&rsquo;s <code>traverse</code> field:</p>
+
+<ul>
+<li><code>bottomup</code>: Traverse the AST bottom-up. (<em>default</em>)</li>
+<li><code>topdown</code>: Traverse the AST top-down.</li>
+</ul>
+
+
+<p> The AST is traversed left-to-right either way.
 
     </ul>
     </ul>
@@ -2321,13 +2365,13 @@ foo    bar</pre>
     <dd>
     <p>Create a new option list.</p>
 
-<pre><code>parser = Options:new{name = 'foo'}
+<pre><code>opts = Options:new{name = 'foo'}
 </code></pre>
 
 <p> is equivalent to:</p>
 
-<pre><code>parser = Options()
-parser:add{name = 'foo'}
+<pre><code>opts = Options()
+opts:add{name = 'foo'}
 </code></pre>
 
     </ul>
@@ -2384,12 +2428,12 @@ parser:add{name = 'foo'}
 
     <h3>Usage:</h3>
     <ul>
-        <pre class="example">parser = Options()
-parser:add{
+        <pre class="example">opts = Options()
+opts:add{
     name = <span class="string">'bar'</span>,
     <span class="global">type</span> = <span class="string">'number'</span>,
     parse = <span class="keyword">function</span> (x)
-        <span class="keyword">if</span> x &lt; <span class="number">1</span> <span class="keyword">return</span> <span class="keyword">return</span> <span class="keyword">nil</span>, <span class="string">'not a positive number.'</span> <span class="keyword">end</span>
+        <span class="keyword">if</span> x &lt; <span class="number">1</span> <span class="keyword">then</span> <span class="keyword">return</span> <span class="keyword">nil</span>, <span class="string">'not a positive number.'</span> <span class="keyword">end</span>
         <span class="keyword">return</span> x
     <span class="keyword">end</span>
 }</pre>
@@ -2468,9 +2512,9 @@ number</pre>
     <strong>opts_parse (meta, ...)</strong>
     </dt>
     <dd>
-    Parse options from a metadata block (function).</p>
+    Parse options from a metadata block (function interface).</p>
 
-<p> <h3>Option definition syntax:</h3></p>
+<p> <h3>Option Definition Syntax:</h3></p>
 
 <p> An option definition is a table with the following keys:</p>
 
@@ -2482,7 +2526,7 @@ number</pre>
 </ul>
 
 
-<p> <h3>Mapping of option names to metadata fieldnames:</h3></p>
+<p> <h3>Mapping of Option Names to Metadata Fieldnames:</h3></p>
 
 <p> The name of the metadata field is the name of the option with
  underscores replaced by dashes. If the option has a prefix,
@@ -2495,7 +2539,7 @@ number</pre>
 if prefix then fieldname = prefix .. '-' .. fieldname end
 </code></pre>
 
-<p> <h3>Type declaration grammar:</h3></p>
+<p> <h3>Type Declaration Grammar:</h3></p>
 
 <p> Configuration values can be of one of three types:</p>
 
@@ -2526,12 +2570,11 @@ if prefix then fieldname = prefix .. '-' .. fieldname end
 
 <p> No type checks or conversions are performed for <code>nil</code>.</p>
 
-<p> <h3>Parse protocol:</h3></p>
+<p> <h3>Parse Protocol:</h3></p>
 
-<p> Parsers take the <em>converted</em> value and either
- return a new value or <code>nil</code> and an error message.</p>
-
-<p> They are <em>not</em> called for <code>nil</code>.
+<p> Parsers are given the converted value and should return
+ either a new value or <code>nil</code> and an error message.
+ They are <em>not</em> called for <code>nil</code>.
 
     <h3>Caveats:</h3>
     <ul>
@@ -2598,7 +2641,7 @@ number</pre>
 </div> <!-- id="main" -->
 <div id="about">
 <i>generated by <a href="http://github.com/stevedonovan/LDoc">LDoc 1.4.6</a></i>
-<i style="float:right;">Last updated 2022-04-08 11:30:01 </i>
+<i style="float:right;">Last updated 2022-04-08 16:07:53 </i>
 </div> <!-- id="about" -->
 </div> <!-- id="container" -->
 </body>
