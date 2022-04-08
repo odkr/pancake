@@ -62,8 +62,6 @@ The test suite requires:
 2. [Pandoc](https://www.pandoc.org/) ≥ v2.
 3. [GNU Make](https://www.gnu.org/software/make/).
 
-The test suite has been tested with Pandoc v2.9 to v2.18.
-
 Simply say:
 
 ```sh
