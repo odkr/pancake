@@ -85,7 +85,6 @@ unset file
 # PRELUDE
 # =======
 
-#temp_dir_make -d . -p rm
 temp_dir_make -p rm
 CLEANUP="git checkout develop; ${CLEANUP-}"
 
@@ -134,7 +133,10 @@ done <"$manifest"
 warn -e "$SMSO" 'updating documentation ...'
 
 make docs
-git add "$filter" man docs
+for dir in man doc
+do
+	[ -e "$dir" ] && git add "$filter" "$dir"
+done
 git commit --quiet --message='docs: updated.' || :
 
 warn -e "$SMSO" 'testing release ...'
