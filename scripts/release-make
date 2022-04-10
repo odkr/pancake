@@ -135,10 +135,12 @@ done <"$manifest"
 : "${readme:="README.md"}"
 
 readme_template="m4/$readme.m4"
-[ "$readme" ] && [ -e "$readme_template" ] && 
+[ "$readme" ] && [ -e "$readme_template" ] && (
+	set +C
 	m4 -D NAME="$name" -D VERSION="$vers" \
 	   "m4/macros.m4" "$readme_template" >"$readme"
-
+)
+	
 if [ "$readme" ]
 then
 	grep --fixed-strings --quiet "$vers" "$fname" ||
