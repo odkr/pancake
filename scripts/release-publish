@@ -92,12 +92,12 @@ CLEANUP="git checkout develop; ${CLEANUP-}"
 # MAIN
 # ====
 
-warn 'verifying branch ...'
+warn -e "$SMSO" 'verifying branch ...'
 
 [ "$(git branch --show-current)" = main ] ||
 	panic 'not on "%s" branch.' "main"
 
-warn 'verifying version number ...'
+warn -e "$SMSO" 'verifying version number ...'
 
 tag="$(
 	git tag --list 'v*' --sort version:refname |
@@ -134,7 +134,7 @@ done <"$manifest"
 name="$(basename "$REPO")" && [ "$name" ] ||
 	panic '%s: failed to determine basename.' "$REPO"
 
-warn 'packaging release ...'
+warn -e "$SMSO" 'packaging release ...'
 
 (
 	manifest="$REPO/$manifest"
@@ -180,11 +180,11 @@ warn 'packaging release ...'
 	gpg --detach-sign --output "$zip.sig" "$zip"
 )
 
-warn 'pushing tag %s to github ...' "${BOLD}v${tag}${SGR0}"
+warn -e "$SMSO" 'pushing tag %s to GitHub ...' "${BOLD}v${tag}${SGR0}"
 
 git push origin "v$tag"
 
-warn 'drafting release ...'
+warn -e "$SMSO" 'drafting release ...'
 
 pre=
 case $tag in (*[a-z]*)
@@ -202,19 +202,17 @@ perl -ne '
 gh release create $pre --draft --title="v$tag" --notes-file="$notes_file" \
                   "v$tag" "$TEMP_DIR/$name-$tag."*
 
-warn 'updating GitHub Pages ...'
+warn -e "$SMSO" 'updating GitHub Pages ...'
 git subtree push --prefix doc origin gh-pages
 
 rockspec_template="$name.rockspec.m4"
 if [ -e "$rockspec_template" ]
 then
-	warn 'packaging Lua Rock ...'
+	warn -e "$SMSO" 'packing Lua Rock ...'
 	rockspec="$name-$vers-0.rockspec"
-	m4 -D NAME="$name" -D VERSION="$vers" >"$TEMP_DIR/$rockspec"
-	(
-		cd -P "$TEMP_DIR" || exit
-		luarocks pack "$rockspec"
-	)
+	m4 -D NAME="$name" -D VERSION="$vers" \
+           "$rockspec_template" >"$TEMP_DIR/$rockspec"
+	luarocks pack "$TEMP_DIR/$rockspec"
 fi
 
 warn -e "$GREEN" done.

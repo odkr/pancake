@@ -1,12 +1,10 @@
 define(`concat', `$1$2')dnl
-define(`lower', `translit(`$1', `A-Z', `a-z')')dnl
-define(PACKAGE, lower(NAME))dnl
-define(TAG, concat(`v', VERSION))dnl
+ifdef(`TAG', `', `define(TAG, concat(`v', VERSION))dnl')
 
-package = "NAME"
+package = "Pancake"
 version = "VERSION-0"
 source = {
-   url = 'git://github.com/odkr/PACKAGE',
+   url = 'git://github.com/odkr/pancake',
    branch = 'main',
    tag = 'TAG',
 }
@@ -22,7 +20,7 @@ description = {
 * object-oriented programming
 * file I/O and filesystem interaction
 * metadata parsing]],
-   homepage = "https://github.com/odkr/PACKAGE",
+   homepage = "https://github.com/odkr/pancake",
    license = "MIT"
 }
 
