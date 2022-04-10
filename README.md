@@ -41,6 +41,8 @@ You use *Pancake* at your own risk.
 2. Unpack it.
 3. Move `pancake.lua` to a directory from where your filter can load it.
 
+The most recent release is v1.0.0b.
+
 
 ## Documentation
 
