@@ -210,10 +210,13 @@ if [ -e "$rockspec_template" ]
 then
 	warn -e "$SMSO" 'packing Lua Rock ...'
 	rockspec="$name-$vers-0.rockspec"
-	m4 -D NAME="$name" -D VERSION="$vers" \
-	   m4/macros.m4 "$rockspec_template" >"$TEMP_DIR/$rockspec"
-	luarocks pack "$TEMP_DIR/$rockspec" || exit
-	luarocks upload --sign "$TEMP_DIR/$rockspec"
+	(
+		cd -P "$TEMP_DIR" || exit
+		m4 -D NAME="$name" -D VERSION="$vers" \
+		   m4/macros.m4 "$rockspec_template" >"$rockspec"
+		luarocks pack "$rockspec" || exit
+		luarocks upload --sign "$rockspec"
+	)
 fi
 
 warn -e "$GREEN" done.
