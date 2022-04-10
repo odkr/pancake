@@ -121,6 +121,9 @@ release_branch="release-$vers"
 
 warn -e "$SMSO" 'updating documentation ...'
 
+name="$(basename "$REPO")" && [ "$name" ] ||
+	panic '%s: failed to determine basename.' "$REPO"
+
 while read -r fname || [ "$fname" ]
 do
 	case $fname in
