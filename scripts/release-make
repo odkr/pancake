@@ -154,11 +154,8 @@ do
 	git checkout "$branch"
 	git merge "$release_branch"
 	
-	if [ "$branch" = main ]
+	if [ "$branch" != main ]
 	then
-		warn -e "$SMSO" 'updating GitHub Pages ...'
-		git subtree push --prefix doc origin gh-pages
-	else
 		warn -e "$SMSO" 'pushing changes in %s ...' \
 		        "$BOLD$branch$SGR0$SMSO"
 		git push origin "$branch"

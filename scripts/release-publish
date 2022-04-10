@@ -202,4 +202,7 @@ perl -ne '
 gh release create $pre --draft --title="v$tag" --notes-file="$notes_file" \
                   "v$tag" "$TEMP_DIR/$name-$tag."*
 
+warn -e "$SMSO" 'updating GitHub Pages ...'
+git subtree push --prefix doc origin gh-pages
+
 warn -e "$GREEN" done.
