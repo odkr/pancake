@@ -46,7 +46,7 @@ test: tempdir
 lint:
 	@luacheck --quiet $(UNIT_TESTS) $(SCRIPT) || [ $$? -eq 127 ]
 
-doc: doc/index.html
+docs: doc/index.html
 
 doc/index.html: $(SCRIPT) README.md doc/config.ld
 	ldoc -c doc/config.ld $(SCRIPT)
