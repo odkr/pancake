@@ -1,3 +1,5 @@
+
+
 # Pancake
 
 Toolkit for writing [Lua filters](https://pandoc.org/lua-filters.html)
@@ -39,9 +41,14 @@ You use *Pancake* at your own risk.
 1. Download the
    [latest release](https://github.com/odkr/pancake/releases/latest).
 2. Unpack it.
-3. Move `pancake.lua` to a directory from where your filter can load it.
+3. Move ``'pancake.lua``' to a directory from where your filter can load it.
 
-The most recent release is v1.0.0b7.
+If [LuaRocks](https://luarocks.org/) is installed on your system,
+you can also install *Pancake* by:
+
+	luarocks install pancake
+
+The most recent release is v1.0.0b8.
 
 
 ## Documentation

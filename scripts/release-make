@@ -143,9 +143,9 @@ readme_template="m4/$readme.m4"
 	
 if [ "$readme" ]
 then
-	grep --fixed-strings --quiet "$vers" "$fname" ||
+	grep --fixed-strings --quiet "$vers" "$readme" ||
 	panic -s 65 '%s: does not reference v%s.' \
-	      "$fname" "$vers"
+	      "$readme" "$vers"
 fi
 
 make docs
