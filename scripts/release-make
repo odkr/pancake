@@ -110,9 +110,9 @@ do
 	[ "$tag" = "v$vers" ] &&
 		panic 'v%s has been released already.' "$vers"
 done
-last="$tag"
+last="${tag-}"
 
-[ "$last" ] || panic 'failed to determine latest release.'
+[ "${last-}" ] || warn 'failed to determine latest release.'
 
 warn 'verifying branch ...'
 
@@ -166,7 +166,10 @@ done
 warn -e "$SMSO" 'collecting log ...'
 
 log="$TEMP_DIR/log"
-git log "^$last" HEAD >"$log"
+if [ "${last-}" ]
+	then git log "^$last" HEAD >"$log"
+	else git log >"$log"
+fi
 
 warn -e "$SMSO" 'adding tag %s ...' "${BOLD}v${vers}${SGR0}${SMSO}"
 
