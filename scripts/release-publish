@@ -202,13 +202,13 @@ perl -ne '
 gh release create $pre --draft --title="v$tag" --notes-file="$notes_file" \
                   "v$tag" "$TEMP_DIR/$name-$tag."*
 
-warn -e 'updating GitHub Pages ...'
+warn 'updating GitHub Pages ...'
 git subtree push --prefix doc origin gh-pages
 
 rockspec_template="$name.rockspec.m4"
 if [ -e "$rockspec_template" ]
 then
-	warn -e 'packaging Lua Rock ...'
+	warn 'packaging Lua Rock ...'
 	rockspec="$name-$version-0.rockspec"
 	m4 -D NAME="$name" -D VERSION="$version" >"$TEMP_DIR/$rockspec"
 	(
