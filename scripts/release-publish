@@ -180,7 +180,7 @@ warn 'packaging release ...'
 	gpg --detach-sign --output "$zip.sig" "$zip"
 )
 
-warn 'pushing tag %s to github ...' "${BOLD}v${tag}${SGR0}${SMSO}"
+warn 'pushing tag %s to github ...' "${BOLD}v${tag}${SGR0}"
 
 git push origin "v$tag"
 
