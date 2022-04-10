@@ -16,7 +16,7 @@
 -- @author Odin Kroeger
 -- @copyright 2022 Odin Kroeger
 -- @license MIT
--- @release v1.0.0b
+-- @release 1.0.0b
 
 -- Initialisation
 -- --------------
