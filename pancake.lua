@@ -2,21 +2,27 @@
 -- Toolkit for writing [Lua filters](https://pandoc.org/lua-filters.html)
 -- for [Pandoc](https://pandoc.org).
 --
--- Pancake has been tested with Pandoc v2.9–v2.18.
--- However, it aims to work in any version ≥ 2.0.4.
+-- Synopsis
+-- ========
 --
 --     pancake = require 'pancake'
 --
--- Pancake automatically loads Pandoc's modules (e.g., `pandoc.utils`,
--- `pandoc.system`, etc.) into the global namespace if you are using
--- a version of Pandoc that does not do this automatically. So you
--- may want to load it *before* setting up a function or module
--- environment using `_ENV`.
+-- Pancake has been tested with Pandoc v2.9–v2.18.
+-- However, it aims to work in any version ≥ 2.0.4.
+--
+--
+-- Tip
+-- ===
+--
+-- Pancake automatically loads Pandoc's modules (e.g., `pandoc.system`) into
+-- the global namespace; this is useful when you are using a version of Pandoc
+-- that does not do this automatically. So, you may want to load it *before*
+-- setting up a per-function or per-module environment.
 --
 -- @author Odin Kroeger
 -- @copyright 2022 Odin Kroeger
 -- @license MIT
--- @release 1.0.0b3
+-- @release 1.0.0b4
 
 -- Initialisation
 -- --------------
@@ -81,7 +87,7 @@ local includes = pandoc.List.includes
 -- @section
 
 --- *Pancake*'s version.
-VERSION = '1.0.0b3'
+VERSION = '1.0.0b4'
 
 --- System
 -- @section
