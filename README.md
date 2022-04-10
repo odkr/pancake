@@ -1,9 +1,8 @@
 # Pancake
 
 Toolkit for writing [Lua filters](https://pandoc.org/lua-filters.html)
-for [Pandoc](https://pandoc.org).
-
-This is yet another test.
+for [Pandoc](https://pandoc.org). It is lightweight, well-documented,
+and well-tested.
 
 *Pancake* aides with
 
@@ -15,9 +14,8 @@ This is yet another test.
 * file I/O and filesystem interaction
 * metadata parsing
 
-See its [documentation](docs/index.html) for details.
+See its [documentation](https://odkr.github.io/pancake/) for details.
 
-It is lightweight, well-documented, and well-tested.
 
 ## Requirements
 
