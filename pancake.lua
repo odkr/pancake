@@ -16,7 +16,7 @@
 -- @author Odin Kroeger
 -- @copyright 2022 Odin Kroeger
 -- @license MIT
--- @release v0.0.0
+-- @release v1.0.0b
 
 -- Initialisation
 -- --------------
@@ -76,6 +76,12 @@ local sort = table.sort
 local stringify = pandoc.utils.stringify
 local includes = pandoc.List.includes
 
+
+--- Metadata
+-- @section
+
+--- *Pancake*'s version.
+VERSION = '1.0.0b'
 
 --- System
 -- @section
