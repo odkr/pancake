@@ -8,7 +8,7 @@ full_description = [[Pancake aides with
 * string interpolation
 * object-oriented programming
 * file I/O and filesystem interaction
-* metadata parsing
+* metadata parsing (i.e., configuration)
 
 See its [GitHub repository](https://github.com/odkr/pancake/) for details.]]
 

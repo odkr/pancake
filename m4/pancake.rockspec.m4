@@ -16,7 +16,7 @@ description = {
 * string interpolation
 * object-oriented programming
 * file I/O and filesystem interaction
-* metadata parsing]],
+* metadata parsing (i.e., configuration)]],
    homepage = "https://github.com/odkr/pancake",
    license = "MIT"
 }

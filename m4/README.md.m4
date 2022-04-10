@@ -2,8 +2,8 @@ changequote(`[[[', `]]]')
 # Pancake
 
 Toolkit for writing [Lua filters](https://pandoc.org/lua-filters.html)
-for [Pandoc](https://pandoc.org). It is lightweight, well-documented,
-and well-tested.
+for [Pandoc](https://pandoc.org). It is lightweight-ish, documented,
+and tested.
 
 *Pancake* aides with
 
@@ -13,7 +13,7 @@ and well-tested.
 * string interpolation
 * object-oriented programming
 * file I/O and filesystem interaction
-* metadata parsing
+* metadata parsing (i.e., configuration)
 
 See its [documentation](https://odkr.github.io/pancake/) for details.
 
