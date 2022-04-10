@@ -132,10 +132,16 @@ done <"$manifest"
 
 warn -e "$SMSO" 'updating documentation ...'
 
+readme="README.md"
+readme_template="m4/$readme.m4"
+[ -e "$readme_template" ] && 
+	m4 -D NAME="$name" -D VERSION="$vers" \
+	   "m4/macros.m4" "$readme_template" >"$readme"
+
 make docs
-for dir in man doc
+for fname in "$readme" doc man
 do
-	[ -e "$dir" ] && git add "$filter" "$dir"
+	[ -e "$fname" ] && git add "$filter" "$fname"
 done
 git commit --quiet --message='docs: updated.' || :
 
