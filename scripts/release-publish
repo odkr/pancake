@@ -209,8 +209,8 @@ rockspec_template="$name.rockspec.m4"
 if [ -e "$rockspec_template" ]
 then
 	warn 'packaging Lua Rock ...'
-	rockspec="$name-$version-0.rockspec"
-	m4 -D NAME="$name" -D VERSION="$version" >"$TEMP_DIR/$rockspec"
+	rockspec="$name-$vers-0.rockspec"
+	m4 -D NAME="$name" -D VERSION="$vers" >"$TEMP_DIR/$rockspec"
 	(
 		cd -P "$TEMP_DIR" || exit
 		luarocks pack "$rockspec"
