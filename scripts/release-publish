@@ -205,7 +205,7 @@ gh release create $pre --draft --title="v$tag" --notes-file="$notes_file" \
 warn -e "$SMSO" 'updating GitHub Pages ...'
 git subtree push --prefix doc origin gh-pages
 
-rockspec_template="$name.rockspec.m4"
+rockspec_template="m4/$name.rockspec.m4"
 if [ -e "$rockspec_template" ]
 then
 	warn -e "$SMSO" 'packing Lua Rock ...'
