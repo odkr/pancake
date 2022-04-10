@@ -16,7 +16,7 @@
 -- @author Odin Kroeger
 -- @copyright 2022 Odin Kroeger
 -- @license MIT
--- @release 1.0.0b
+-- @release 1.0.0b1
 
 -- Initialisation
 -- --------------
@@ -81,7 +81,7 @@ local includes = pandoc.List.includes
 -- @section
 
 --- *Pancake*'s version.
-VERSION = '1.0.0b'
+VERSION = '1.0.0b1'
 
 --- System
 -- @section
