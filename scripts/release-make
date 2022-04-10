@@ -119,30 +119,36 @@ release_branch="release-$vers"
 [ "$(git branch --show-current)" = "$release_branch" ] ||
  	panic 'not on "%s" branch.' "$release_branch"
 
+warn -e "$SMSO" 'updating documentation ...'
+
 while read -r fname || [ "$fname" ]
 do
 	case $fname in
 		('#'*|'') continue ;;
 		(*[Rr][Ee][Aa][Dd][Mm][Ee]*)
-			grep --fixed-strings --quiet "$vers" "$fname" ||
-			panic -s 65 '%s: does not reference v%s.' \
-			      "$fname" "$vers"
+			readme="$fname"
 	esac
 done <"$manifest"
+: "${readme:="README.md"}"
 
-warn -e "$SMSO" 'updating documentation ...'
-
-readme="README.md"
 readme_template="m4/$readme.m4"
-[ -e "$readme_template" ] && 
+[ "$readme" ] && [ -e "$readme_template" ] && 
 	m4 -D NAME="$name" -D VERSION="$vers" \
 	   "m4/macros.m4" "$readme_template" >"$readme"
+
+if [ "$readme" ]
+then
+	grep --fixed-strings --quiet "$vers" "$fname" ||
+	panic -s 65 '%s: does not reference v%s.' \
+	      "$fname" "$vers"
+fi
 
 make docs
 for fname in "$readme" doc man
 do
 	[ -e "$fname" ] && git add "$filter" "$fname"
 done
+
 git commit --quiet --message='docs: updated.' || :
 
 warn -e "$SMSO" 'testing release ...'
