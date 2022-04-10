@@ -60,7 +60,9 @@ The test suite requires:
 
 1. A POSIX-compliant operating system.
 2. [Pandoc](https://www.pandoc.org/) ≥ v2.
-3. [GNU Make](https://www.gnu.org/software/make/).
+3. [LuaUnit] (https://github.com/bluebird75/luaunit).
+4. [GNU Make](https://www.gnu.org/software/make/).
+
 
 Simply say:
 
