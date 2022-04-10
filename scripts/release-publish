@@ -208,12 +208,12 @@ git subtree push --prefix doc origin gh-pages
 rockspec_template="m4/$name.rockspec.m4"
 if [ -e "$rockspec_template" ]
 then
-	warn -e "$SMSO" 'packing Lua Rock ...'
+	warn -e "$SMSO" 'packing and uploading Lua Rock ...'
 	rockspec="$name-$vers-0.rockspec"
 	(
 		cd -P "$TEMP_DIR" || exit
 		m4 -D NAME="$name" -D VERSION="$vers" \
-		   m4/macros.m4 "$rockspec_template" >"$rockspec"
+		   "$REPO/m4/macros.m4" "$REPO/$rockspec_template" >"$rockspec"
 		luarocks pack "$rockspec" || exit
 		luarocks upload --sign "$rockspec"
 	)
