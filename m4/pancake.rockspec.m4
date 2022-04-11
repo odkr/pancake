@@ -17,6 +17,7 @@ description = {
 * object-oriented programming
 * file I/O and filesystem interaction
 * metadata parsing (i.e., configuration)]],
+   labels = {'pandoc', 'filter'}
    homepage = "https://github.com/odkr/pancake",
    license = "MIT"
 }
@@ -30,5 +31,5 @@ build = {
    modules = {
       pancake = 'pancake/pancake.lua',
    },
-   copy_directories = { 'doc' }
+   copy_directories = {'doc'}
 }
