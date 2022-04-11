@@ -46,7 +46,7 @@ you can also install *Pancake* by:
 
 	luarocks install pancake
 
-The most recent release is v1.0.0b15.
+The most recent release is v1.0.0b16.
 
 
 ## Documentation
