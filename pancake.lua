@@ -2194,14 +2194,15 @@ do
     -- > parser = Options()
     -- > parser:add{
     -- >     name = 'bar',
+    -- >     prefix = 'foo',
     -- >     type = 'number',
     -- >     parse = function (x)
-    -- >         if x < 1 return return nil, 'not a positive number.' end
+    -- >         if x < 1 then return nil, 'not a positive number.' end
     -- >         return x
     -- >     end
     -- > }
     -- > opts = parser:parse(meta)
-    -- > opts.bars
+    -- > opts.bar
     -- 123
     -- > type(opts.bar)
     -- number
