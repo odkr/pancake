@@ -1,1 +1,0 @@
-﻿NDFramePage.OnPageTitleLoaded("File:pandoc-toolkit.lua","pandoc-toolkit.lua");NDSummary.OnSummaryLoaded("File:pandoc-toolkit.lua",[["Lua","Lua"]],[["Files","File"],["Functions","Function"],["Groups","Group"]],[[6,0,0,"pandoc-toolkit.lua","pandoc-toolkit.lua"],[7,0,2,"Type-checking","Type-checking"],[2,0,1,"type_match","type_match"]]);
