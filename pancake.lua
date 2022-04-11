@@ -1628,7 +1628,8 @@ do
     --
     -- <h3>Printout:</h3>
     --
-    -- Prefixed with file of the script and ': ', and terminated with @{EOL}.
+    -- Prefixed with the filename of the script and ': ',
+    -- and terminated with @{EOL}.
     -- Non-string values are coerced to strings.
     --
     -- <h3>Message priority:</h3>
