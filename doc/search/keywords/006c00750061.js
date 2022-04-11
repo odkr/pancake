@@ -1,1 +1,0 @@
-﻿NDSearch.OnPrefixDataLoaded("lua",["File"],[["lua",,[[,"pandoc-toolkit.lua",,,0,"File:pandoc-toolkit.lua:pandoc-toolkit.lua"]]]]);

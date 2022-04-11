@@ -1,1 +1,0 @@
-﻿NDSearch.OnPrefixDataLoaded("typ",["Function"],[["type_match",,[[,,,,0,"File:pandoc-toolkit.lua:type_match"]]]]);
