@@ -1,5 +1,7 @@
-package = "Pancake"
-version = "VERSION-0"
+rockspec_format = '3.0'
+
+package = 'Pancake'
+version = 'VERSION-0'
 source = {
    url = 'git://github.com/odkr/pancake',
    branch = 'main',
@@ -23,11 +25,11 @@ description = {
 }
 
 dependencies = {
-   "lua >= 5.3, <6"
+   'lua >= 5.3, <6'
 }
 
 build = {
-   type = "builtin",
+   type = 'builtin',
    modules = {
       pancake = 'pancake.lua',
    },
