@@ -29,7 +29,7 @@ dependencies = {
 build = {
    type = "builtin",
    modules = {
-      pancake = 'pancake/pancake.lua',
+      pancake = 'pancake.lua',
    },
    copy_directories = {'doc'}
 }
