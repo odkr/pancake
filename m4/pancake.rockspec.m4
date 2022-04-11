@@ -17,7 +17,7 @@ description = {
 * object-oriented programming
 * file I/O and filesystem interaction
 * metadata parsing (i.e., configuration)]],
-   labels = {'pandoc', 'filter'}
+   labels = {'pandoc', 'filter'},
    homepage = "https://github.com/odkr/pancake",
    license = "MIT"
 }
