@@ -648,13 +648,13 @@ function test_tabulate ()
     end
 
     for input, output in pairs {
-        [{stateless_iter(0)}] = {},
-        [{stateless_iter(1)}] = {1},
-        [{stateless_iter(3)}] = {1, 2, 3},
-        [{next, {}}] = {},
-        [{next, {a = true}}] = {'a'},
-        [{next, {a = true, b = true, c = true}}] = {'a', 'b', 'c'},
-        [{function () end}] = {}
+        [{stateless_iter(0)}] = {n = 0},
+        [{stateless_iter(1)}] = {1, n = 1},
+        [{stateless_iter(3)}] = {1, 2, 3, n = 3},
+        [{next, {}}] = {n = 0},
+        [{next, {a = true}}] = {'a', n = 1},
+        [{next, {a = true, b = true, c = true}}] = {'a', 'b', 'c', n = 3},
+        [{function () end}] = {n = 0}
     } do
         assert_items_equals(M.tabulate(unpack(input)), output)
     end
@@ -671,7 +671,7 @@ function test_update ()
     assert_equals(other_tab.baz[1], 'bam!')
 
     tab = {a = true, b = true, c = true}
-    assert_items_equals(M.tabulate(next, tab), {'a', 'b', 'c'})
+    assert_items_equals(M.tabulate(next, tab), {'a', 'b', 'c', n = 3})
 end
 
 -- luacheck: ignore test_walk
@@ -717,30 +717,33 @@ function test_split ()
     end
 
     for input, output in pairs{
-        [{'string', '%s*:%s*'}] = {'string'},
-        [{'key: value:', '%s*:%s*'}] = {'key', 'value', ''},
-        [{'val, val, val', ',%s*'}] = {'val', 'val', 'val'},
-        [{', val , val', '%s*,%s*'}] = {'', 'val', 'val'},
-        [{'key: value', ': '}] = {'key', 'value'},
-        [{'key: value:x', '%s*:%s*', 2}] = {'key', 'value:x'},
-        [{'val, val, val', ',%s*', 2}] = {'val', 'val, val'},
+        [{'string', '%s*:%s*'}] = {'string', n = 1},
+        [{'key: value:', '%s*:%s*'}] = {'key', 'value', '', n = 3},
+        [{'val, val, val', ',%s*'}] = {'val', 'val', 'val', n = 3},
+        [{', val , val', '%s*,%s*'}] = {'', 'val', 'val', n = 3},
+        [{'key: value', ': '}] = {'key', 'value', n = 2},
+        [{'key: value:x', '%s*:%s*', 2}] = {'key', 'value:x', n = 2},
+        [{'val, val, val', ',%s*', 2}] = {'val', 'val, val', n = 2},
         [{'CamelCaseTest', '%u', nil, 'l'}] =
-            {'', 'Camel', 'Case', 'Test'},
+            {'Camel', 'Case', 'Test', n = 3},
         [{'CamelCaseTest', '%u', nil, 'r'}] =
-            {'C', 'amelC', 'aseT', 'est'},
+            {'C', 'amelC', 'aseT', 'est', n = 4},
         [{'CamelCaseTest', '%u', 2, 'l'}] =
-            {'', 'CamelCaseTest'},
+            {'Camel', 'CaseTest', n = 2},
         [{'CamelCaseTest', '%u', 2, 'r'}] =
-            {'C', 'amelCaseTest'},
-        [{'foo*bar', '*', nil, nil, true}] = {'foo', 'bar'},
-        [{'foo.*bar', '.*', nil, nil, true}] = {'foo', 'bar'},
-        [{'$a$$b$c', '%f[%$]%$'}] = {'', 'a', '$b', 'c'},
-        [{'foo', ''}] = {'', 'f', 'o', 'o', ''},
-        [{'foo1bar2baz', '%f[%d]'}] = {'foo', '1bar', '2baz'},
-        [{'foobar', '[bo]*'}] = {'', 'f', 'a', 'r', ''},
-        [{'foobar', '[bo]*', nil, 'l'}] = {'', 'f', 'ooba', 'r', ''},
-        [{'foobar', '[bo]*', nil, 'r'}] = {'', 'foob', 'a', 'r', ''},
-        [{'foobar', '[bo]*', nil, 'r', true}] = {'foobar'}
+            {'C', 'amelCaseTest', n = 2},
+        [{'foobar', '[fb]', nil, 'l'}] = {'foo', 'bar', n = 2},
+        [{'foo*bar', '*', nil, nil, true}] = {'foo', 'bar', n = 2},
+        [{'foo.*bar', '.*', nil, nil, true}] = {'foo', 'bar', n = 2},
+        [{'$a$$b$c', '%f[%$]%$'}] = {'', 'a', '$b', 'c', n = 4},
+        [{'foo', ''}] = {'', 'f', 'o', 'o', '', n = 5},
+        [{'foo1bar2baz', '%f[%d]'}] = {'foo', '1bar', '2baz', n = 3},
+        [{'foobar', '[bo]*'}] = {'', 'f', '', 'a', 'r', '', n = 6},
+        [{'abc', 'b*'}] = {'', 'a', '', 'c', '', n = 5},
+        [{'foobar', '[bo]*', nil, 'l'}] = {'f', 'ooba', 'r', n = 3},
+        [{'foobar', '[bo]*', nil, 'r'}] = {'foob', 'a', 'r', n = 3},
+        [{'foobar', '[bo]*', nil, 'r', true}] = {'foobar', n = 1},
+        [{'CamelCase', '%f[%u]'}] = {'', 'Camel', 'Case', n = 3}
     } do
         assert_items_equals(M.tabulate(M.split(unpack(input))), output)
     end
@@ -1639,6 +1642,24 @@ do
                 list_list_3 = {{1}},
                 add = 1
             })
+
+            local defs = {name = 'alt', type = 'list<list<number>>|list<number>|string'}
+            local exp = 'alt: not a list of lists of numbers or list of numbers or string.'
+            for _, input in ipairs{true, {'a'}, {{{1}}}} do
+                local ok, err = func({defs}, MetaMap{alt = input})
+                assert_nil(ok)
+                assert_equals(err, exp)
+            end
+
+            for input, output in pairs {
+                ['foo'] = 'foo',
+                [1] = {{1}},
+                [{1}] = {{1}},
+                [{{1}}] = {{1}}
+            } do
+                local result = func({defs}, MetaMap{alt = input})
+                assert_items_equals(result, {alt = output})
+            end
         end
     end
 
