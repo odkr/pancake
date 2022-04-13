@@ -2,22 +2,22 @@
 -- Toolkit for writing [Lua filters](https://pandoc.org/lua-filters.html)
 -- for [Pandoc](https://pandoc.org).
 --
--- Synopsis
--- ========
+-- Synopsis:
+-- =========
 --
 --     pancake = require 'pancake'
 --
--- Pancake has been tested with Pandoc v2.9–v2.18.
--- However, it aims to work in any version ≥ 2.0.4.
+-- Pancake aims to work with Pandoc ≥ v2.0.4.
+-- However, it has only been tested with v2.9–v2.18, and only on Linux and macOS.
 --
 --
--- Tip
--- ===
+-- Tip:
+-- ====
 --
 -- Pancake automatically loads Pandoc's modules (e.g., `pandoc.system`) into
--- the global namespace; this is useful when you are using a version of Pandoc
--- that does not do this automatically. So, you may want to load it *before*
--- setting up a per-function or per-module environment.
+-- the global namespace; this is useful when you are using older versions of
+-- Pandoc, which do not do this automatically. So, you may want to load it
+-- *before* setting up a per-function or per-module environment.
 --
 -- @author Odin Kroeger
 -- @copyright 2022 Odin Kroeger
@@ -42,7 +42,7 @@ if pandoc.types then
     end
 end
 
--- Set up custom global environment.
+-- Set up a per-module environment.
 local _G = _G
 
 local assert = assert
@@ -115,11 +115,11 @@ do
     --
     -- <h3>Type Declaration Grammar:</h3>
     --
-    -- Give one or more Lua type names separated by a pipe ('|') to check
-    -- that a value is of one of the given types (e.g., 'string|table'
-    -- checks whether the value is a string or a table). '*' is short
-    -- for the list of all types save for `nil`. '?T' is short for
-    -- 'T|nil' (e.g., '?table' is short for 'table|nil').
+    -- Give one or more Lua type names separated by a pipe symbol ('|')
+    -- to check whether a value is of one of the given types (e.g.,
+    -- 'string|table' checks whether the value is a string or a table).
+    -- '*' is short for the list of all types save for `nil`. '?*T*' is
+    -- short for '*T*|nil' (e.g., '?table' is short for 'table|nil').
     --
     -- In [Extended Backus-Naur Form](https://en.wikipedia.org/wiki/EBNF):
     --
@@ -502,6 +502,7 @@ sorted = type_check('table', '?function', '?boolean')(
 -- @tab[opt] tab A table to iterate over.
 -- @param[opt] idx An index to start at.
 -- @treturn tab The values returned by the iterator.
+-- @treturn int The number of values.
 --
 -- @usage
 -- > tab = {a = true, b = true, c = true}
@@ -517,6 +518,7 @@ tabulate = type_check('function')(
             n = n + 1
             vals[n] = v
         end
+        vals.n = n
         return vals
     end
 )
@@ -588,66 +590,72 @@ walk = type_check('*', 'function', '?table')(
 -- @caveats Does not support multi-byte characters.
 --
 -- @string str A string.
--- @string pattern Where to split the string.
+-- @string pat Where to split the string.
 -- @int[opt] max Split the string into at most that many substrings.
--- @string[opt] incl Include separator in substrings?
---  'l' includes it on the left,
+-- @string[opt] incl Include separators in substrings?
+--  'l' includes them on the left,
 --  'r' on the right.
+--  If they are included, the iterator never returns the empty string.
 -- @bool[opt=false] plain Disable pattern matching facilities?
 -- @treturn func A *stateful* iterator.
 --
 -- @usage
--- > for s in split('CamelCase', '%u', nil, 'l') do
--- >     print(string.format('"%s"', s))
+-- > for s in split('CamelCase', '%f[%u]') do
+-- >     print(s)
 -- > end
--- ""
--- "Camel"
--- "Case"
+--
+-- Camel
+-- Case
+-- > for s in split('foobar', '[fb]', nil, 'l') do
+-- >     print(s)
+-- > end
+-- foo
+-- bar
 --
 -- @function split
 split = type_check('string', 'string', '?number', '?string', '?boolean')(
-    function (str, pattern, max, incl, plain)
+    function (str, pat, max, incl, plain)
         assert(not incl or incl == 'l' or incl == 'r', 'expecting "l" or "r".')
-        local pos = 1
-        local pss = 1
-        local emp = 0
+        local fs = 1
+        local ts = 1
         local n = 1
         return function ()
-            if not pos then return end
-            local sub, s, e
-            if not max or n < max then s, e = str:find(pattern, pos, plain) end
-            if s then
-                if s <= e then
-                    if not incl then
-                        sub = str:sub(pos - emp, s - 1)
-                    elseif incl == 'l' then
-                        sub = str:sub(pss, s - 1)
-                        pss = s
+            while true do
+                if not fs then return end
+                local sub, s, e
+                if not max or n < max then s, e = str:find(pat, fs, plain) end
+                if s then
+                    if s <= e then
+                        if not incl then
+                            sub = str:sub(ts, s - 1)
+                            ts = e + 1
+                        elseif incl == 'l' then
+                            sub = str:sub(ts, s - 1)
+                            ts = s
+                        else
+                            sub = str:sub(ts, e)
+                            ts = e + 1
+                        end
+                        fs = e + 1
                     else
-                        sub = str:sub(pos - emp, e)
+                        if incl == 'l' then
+                            sub = str:sub(ts, s)
+                            ts = s + 1
+                        else
+                            sub = str:sub(ts, e)
+                            ts = s
+                        end
+                        fs = s + 1
                     end
-                    pos = e + 1
-                    emp = 0
                 else
-                    if incl == 'l' then
-                        sub = str:sub(pss, s)
-                        pss = s + 1
-                    else
-                        sub = str:sub(pos - emp, e)
-                    end
-                    pos = s + 1
-                    emp = 1
+                    sub = str:sub(ts)
+                    fs = nil
                 end
-            else
-                if incl == 'l' then
-                    sub = str:sub(pss)
-                else
-                    sub = str:sub(pos - emp)
+                if not incl or sub ~= '' then
+                    n = n + 1
+                    return sub
                 end
-                pos = nil
             end
-            n = n + 1
-            return sub
         end
     end
 )
@@ -1628,7 +1636,8 @@ do
     --
     -- <h3>Printout:</h3>
     --
-    -- Prefixed with file of the script and ': ', and terminated with @{EOL}.
+    -- Prefixed with the filename of the script and ': ',
+    -- and terminated with @{EOL}.
     -- Non-string values are coerced to strings.
     --
     -- <h3>Message priority:</h3>
@@ -2022,8 +2031,7 @@ end
 
 --- Options
 -- @section
--- @todo Add more option types, above all, 'map' and 'bool'.
--- @todo Maybe rename 'string' to 'str' (use names from Pandoc).
+-- @todo Add more option types, above all, 'mapping' and 'boolean'.
 
 do
     -- luacheck: ignore stringify
@@ -2044,11 +2052,26 @@ do
     -- @raise An error if a type declaration cannot be parsed.
     local function convert (val, decl)
         if not decl then decl = 'string' end
-        local head, tail = decl:match '^%s*(%l+)%s*<?%s*([%l<>%s]-)%s*>?%s*$'
-        if not head then error(decl .. ': cannot parse option type.', 3) end
-        local conv = converters[head]
-        if not conv then error(head .. ': no such option type.', 3) end
-        if val ~= nil then return conv(val, tail or 'string') end
+        local err
+        local n = 0
+        for t in decl:gmatch '[^|]+' do
+            if t ~= '' then
+                n = n + 1
+                local head, tail = t:match '^%s*(%l+)%s*<?%s*([%l<>%s]-)%s*>?%s*$'
+                if not head then error(decl .. ': cannot parse option type.', 3) end
+                local conv = converters[head]
+                if not conv then error(head .. ': no such option type.', 3) end
+                if val ~= nil then
+                    local result
+                    result, err = conv(val, tail or 'string')
+                    if result ~= nil then return result end
+                end
+            end
+        end
+        if n == 1 then return nil, err or format('not a %s.', decl) end
+        decl = decl:gsub('<(%a+)', ' of %1s'):gsub('>', ''):
+                    gsub('|', ' or '):gsub('%s+', ' ')
+        return nil, format('not a %s.', decl)
     end
 
     -- Convert a value to a Lua string.
@@ -2193,14 +2216,15 @@ do
     -- > parser = Options()
     -- > parser:add{
     -- >     name = 'bar',
+    -- >     prefix = 'foo',
     -- >     type = 'number',
     -- >     parse = function (x)
-    -- >         if x < 1 return return nil, 'not a positive number.' end
+    -- >         if x < 1 then return nil, 'not a positive number.' end
     -- >         return x
     -- >     end
     -- > }
     -- > opts = parser:parse(meta)
-    -- > opts.bars
+    -- > opts.bar
     -- 123
     -- > type(opts.bar)
     -- number
@@ -2239,29 +2263,38 @@ do
     --
     -- <h3>Type Declaration Grammar:</h3>
     --
-    -- Configuration values can be of one of three types:
+    -- Configuration values can be of any of three types:
     --
     -- * 'number'
     -- * 'string'
     -- * 'list'
     --
-    -- If you declare an option to be of the scalar types 'number' or
-    -- 'string', its value is required to be of the Lua type of the
-    -- same name. Values are converted automatically if possible.
+    -- If an option is declared to be of the scalar types 'number' or 'string'
+    -- its value is required to be of the Lua type of the same name. However,
+    -- values are converted automatically if possible.
     --
-    -- If you declare an option to be of the type 'list', its value is
-    -- required to be a `pandoc.List`. If a scalar is encountered where
-    -- a list was expected, the value is wrapped in a single-item list.
+    -- If an option is declared to be a 'list', its value is required to be a
+    -- `pandoc.List`. However, if a scalar value is encountered where a list
+    -- is expected, the value is wrapped in a single-item list automatically.
     --
-    -- The items of a list must all be of the same type, which you declare by
+    -- The items of a list must all be of the same type, which is declared by
     -- appending '<*T*>' to the literal 'list', where *T* is either the name
-    -- of a scalar type or another list declaration and defaults to 'string'.
+    -- of a scalar type or another list declaration; it defaults to 'string'.
+    --
+    -- An option can be declared to be of any of a list of types separated
+    -- by the pipe symbol ('|'), for example, 'string|list'. The first type
+    -- that matches 'wins', even if winning requires a type conversion
+    -- (i.e., 'string|number' is, effectively, the same as 'string').
     --
     -- In [Extended Backus-Naur Form](https://en.wikipedia.org/wiki/EBNF):
     --
     -- > Scalar = 'number' | 'string'
     -- >
     -- > List = 'list', [ '<', ( scalar | list ), '>' ]
+    -- >
+    -- > Type = list | scalar
+    -- >
+    -- > Type list = type, { '|', type }
     --
     -- No type checks or conversions are performed for `nil`.
     --
@@ -2289,13 +2322,14 @@ do
     -- >     })
     -- > opts = opts_parse(meta, {
     -- >     name = 'bar',
+    -- >     prefix = 'foo',
     -- >     type = 'number',
     -- >     parse = function (x)
-    -- >         if x < 1 return return nil, 'not a positive number.' end
+    -- >         if x < 1 then return nil, 'not a positive number.' end
     -- >         return x
     -- >     end
     -- > })
-    -- > opts.bars
+    -- > opts.bar
     -- 123
     -- > type(opts.bar)
     -- number
