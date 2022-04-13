@@ -2052,6 +2052,7 @@ do
     -- @raise An error if a type declaration cannot be parsed.
     local function convert (val, decl)
         if not decl then decl = 'string' end
+        local err
         local n = 0
         for t in decl:gmatch '[^|]+' do
             if t ~= '' then
@@ -2067,7 +2068,7 @@ do
                 end
             end
         end
-        if n == 1 then return nil, err end
+        if n == 1 then return nil, err or format('not a %s.', decl) end
         decl = decl:gsub('<(%a+)', ' of %1s'):gsub('>', ''):
                     gsub('|', ' or '):gsub('%s+', ' ')
         return nil, format('not a %s.', decl)
