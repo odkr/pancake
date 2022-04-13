@@ -590,7 +590,7 @@ walk = type_check('*', 'function', '?table')(
 -- @caveats Does not support multi-byte characters.
 --
 -- @string str A string.
--- @string pat Where to split the string.
+-- @string pattern Where to split the string.
 -- @int[opt] max Split the string into at most that many substrings.
 -- @string[opt] incl Include separators in substrings?
 --  'l' includes them on the left,
@@ -614,7 +614,7 @@ walk = type_check('*', 'function', '?table')(
 --
 -- @function split
 split = type_check('string', 'string', '?number', '?string', '?boolean')(
-    function (str, pat, max, incl, plain)
+    function (str, pattern, max, incl, plain)
         assert(not incl or incl == 'l' or incl == 'r', 'expecting "l" or "r".')
         local fs = 1
         local ts = 1
@@ -623,7 +623,7 @@ split = type_check('string', 'string', '?number', '?string', '?boolean')(
             while true do
                 if not fs then return end
                 local sub, s, e
-                if not max or n < max then s, e = str:find(pat, fs, plain) end
+                if not max or n < max then s, e = str:find(pattern, fs, plain) end
                 if s then
                     if s <= e then
                         if not incl then
