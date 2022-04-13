@@ -212,7 +212,7 @@ then
 	rockspec="$TEMP_DIR/$name-$vers-0.rockspec"
 	m4 -D NAME="$name" -D VERSION="$vers" \
 	   "$REPO/m4/macros.m4" "$REPO/$rockspec_template" >"$rockspec"
-	luarocks --verbose pack "$rockspec" || exit
+	luarocks pack "$rockspec" || exit
 	luarocks upload --sign "$rockspec"
 fi
 
