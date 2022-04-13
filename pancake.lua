@@ -623,7 +623,9 @@ split = type_check('string', 'string', '?number', '?string', '?boolean')(
             while true do
                 if not fs then return end
                 local sub, s, e
-                if not max or n < max then s, e = str:find(pattern, fs, plain) end
+                if not max or n < max then
+                    s, e = str:find(pattern, fs, plain)
+                end
                 if s then
                     if s <= e then
                         if not incl then
@@ -843,9 +845,9 @@ do
     --
     -- Variables can also be looked up by a function. The function is run
     -- in protected mode. If it throws an error, `vars_sub` will return
-    -- `nil` and the error object thrown by the function. Note, this mode
-    -- does *not* support multi-dimensional lookups (`${foo.bar}`),
-    -- pipes (`${foo|bar}`), or recursive substitution.
+    -- `nil` and the error object thrown by the function. This mode does
+    -- *not* support multi-dimensional lookups (`${foo.bar}`), pipes
+    -- (`${foo|bar}`), or recursive substitution.
     --
     --    > vars_sub(
     --    >     '${foo} is bar.',
@@ -2281,10 +2283,10 @@ do
     -- appending '<*T*>' to the literal 'list', where *T* is either the name
     -- of a scalar type or another list declaration; it defaults to 'string'.
     --
-    -- An option can be declared to be of any of a list of types separated
-    -- by the pipe symbol ('|'), for example, 'string|list'. The first type
-    -- that matches 'wins', even if winning requires a type conversion
-    -- (i.e., 'string|number' is, effectively, the same as 'string').
+    -- An option is declared to be of any of a list of types by joining type
+    -- names with a pipe symbol ('|'), for example, 'string|list'. The first
+    -- type that matches 'wins', even if winning requires a type conversion
+    -- (i.e., 'string|number' is, effectively, equivalent to 'string').
     --
     -- In [Extended Backus-Naur Form](https://en.wikipedia.org/wiki/EBNF):
     --
@@ -2292,7 +2294,7 @@ do
     -- >
     -- > List = 'list', [ '<', ( scalar | list ), '>' ]
     -- >
-    -- > Type = list | scalar
+    -- > Type = scalar | list
     -- >
     -- > Type list = type, { '|', type }
     --
