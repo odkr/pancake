@@ -500,9 +500,8 @@ sorted = type_check('table', '?function', '?boolean')(
 -- @func iter An iterator. Must accept, though not honour,
 --  the same arguments as @{next}.
 -- @tab[opt] tab A table to iterate over.
--- @param[opt] idx An index to start at.
--- @treturn tab The values returned by the iterator.
--- @treturn int The number of values.
+-- @param[opt=1] idx An index to start at.
+-- @treturn {...,n=number} The values returned by the iterator.
 --
 -- @usage
 -- > tab = {a = true, b = true, c = true}
@@ -587,16 +586,23 @@ walk = type_check('*', 'function', '?table')(
 
 --- Iterate over substrings of a string.
 --
+-- <h3>Options:</h3>
+--
+-- `split` accepts a string of option characters:
+--
+-- * 'P': Disable pattern matching.
+-- * 'E': Skip empty substrings.
+-- * 'l': Add seperator to left of substring; implies 'E'.
+-- * 'r': Add seperator to right; implies 'E'.
+--
+-- An empty string of options is ignored silently.
+--
 -- @caveats Does not support multi-byte characters.
 --
 -- @string str A string.
 -- @string pattern Where to split the string.
 -- @int[opt] max Split the string into at most that many substrings.
--- @string[opt] incl Include separators in substrings?
---  'l' includes them on the left,
---  'r' on the right.
---  If they are included, the iterator never returns the empty string.
--- @bool[opt=false] plain Disable pattern matching facilities?
+-- @string[opt] opts Option string.
 -- @treturn func A *stateful* iterator.
 --
 -- @usage
@@ -606,6 +612,11 @@ walk = type_check('*', 'function', '?table')(
 --
 -- Camel
 -- Case
+-- > for s in split('CamelCase', '%f[%u]', nil, 'E') do
+-- >     print(s)
+-- > end
+-- Camel
+-- Case
 -- > for s in split('foobar', '[fb]', nil, 'l') do
 -- >     print(s)
 -- > end
@@ -613,47 +624,60 @@ walk = type_check('*', 'function', '?table')(
 -- bar
 --
 -- @function split
-split = type_check('string', 'string', '?number', '?string', '?boolean')(
-    function (str, pattern, max, incl, plain)
-        assert(not incl or incl == 'l' or incl == 'r', 'expecting "l" or "r".')
-        local fs = 1
-        local ts = 1
+split = type_check('string', 'string', '?number', '?string')(
+    function (str, pattern, max, opts)
+        local left, right, skip, plain
+        if opts then
+            for i = 1, #opts do
+                local c = opts:sub(i, i)
+                if     c == 'l' then left = true
+                                     skip = true
+                elseif c == 'r' then right = true
+                                     skip = true
+                elseif c == 'E' then skip = true
+                elseif c == 'P' then plain = true
+                else error(c .. ': no such option.', 2)
+                end
+            end
+        end
+        local from = 1
+        local pos = 1
         local n = 1
         return function ()
             while true do
-                if not fs then return end
+                if not pos then return end
                 local sub, s, e
                 if not max or n < max then
-                    s, e = str:find(pattern, fs, plain)
+                    s, e = str:find(pattern, pos, plain)
                 end
                 if s then
                     if s <= e then
-                        if not incl then
-                            sub = str:sub(ts, s - 1)
-                            ts = e + 1
-                        elseif incl == 'l' then
-                            sub = str:sub(ts, s - 1)
-                            ts = s
+                        if left then
+                            sub = str:sub(from, s - 1)
+                            from = s
+                        elseif right then
+                            sub = str:sub(from, e)
+                            from = e + 1
                         else
-                            sub = str:sub(ts, e)
-                            ts = e + 1
+                            sub = str:sub(from, s - 1)
+                            from = e + 1
                         end
-                        fs = e + 1
+                        pos = e + 1
                     else
-                        if incl == 'l' then
-                            sub = str:sub(ts, s)
-                            ts = s + 1
+                        if left then
+                            sub = str:sub(from, s)
+                            from = s + 1
                         else
-                            sub = str:sub(ts, e)
-                            ts = s
+                            sub = str:sub(from, e)
+                            from = s
                         end
-                        fs = s + 1
+                        pos = s + 1
                     end
                 else
-                    sub = str:sub(ts)
-                    fs = nil
+                    sub = str:sub(from)
+                    pos = nil
                 end
-                if not incl or sub ~= '' then
+                if not skip or sub ~= '' then
                     n = n + 1
                     return sub
                 end
@@ -934,8 +958,6 @@ end
 -- > tab.FOO = 'bar'
 -- > tab.foo
 -- bar
---
--- @todo Rename to no_case.
 no_case = {}
 
 --- Look up an item.
@@ -1471,8 +1493,6 @@ do
     local patterns = {
         {PATH_SEP .. '%.' .. PATH_SEP, PATH_SEP},
         {PATH_SEP .. '+', PATH_SEP},
-        -- @todo This could be replaced by a frontier pattern.
-        --       However, Lua v5.1 does not know about frontier patterns.
         {'(.)' .. PATH_SEP .. '$', '%1'},
         {'^%.' .. PATH_SEP, ''}
     }
@@ -1639,8 +1659,8 @@ do
     -- <h3>Printout:</h3>
     --
     -- Prefixed with the filename of the script and ': ',
-    -- and terminated with @{EOL}.
-    -- Non-string values are coerced to strings.
+    -- terminated with @{EOL}.
+    -- Non-strings are coerced to strings.
     --
     -- <h3>Message priority:</h3>
     --
@@ -1650,8 +1670,8 @@ do
     -- <h3>Variable substitution:</h3>
     --
     -- If string values contain variable names, they are replaced with the
-    -- values of the local variables, the upvalues of the calling function,
-    -- or, if there are no local variables or upvalues of the given names,
+    -- values of the local variables, of the upvalues of the calling function,
+    -- or, if there are no local variables or upvalues of the given names, of
     -- `_ENV`. See @{vars_sub} for the syntax and @{vars_get} for limitations.
     --
     -- <h3>Options:</h3>
@@ -1726,7 +1746,9 @@ if not pandoc.types or PANDOC_VERSION < {2, 15} then
         function (elem)
             if elem.clone then return elem:clone() end
             assert(elem_type(elem) == 'Pandoc', 'expected a Pandoc document.')
-            return update({}, elem)
+            local mt = getmetatable(elem)
+            if type(mt) ~= 'table' then mt = nil end
+            return update(setmetatable({}, mt), elem)
         end
     )
 else
@@ -1922,35 +1944,51 @@ do
 end
 
 do
-    -- Walk a Lua table.
-    local function walk_table (tab, ...)
+    -- Walk a Lua table that represents a list.
+    local function walk_list (tab, filter, ...)
+        for i = 1, #tab do tab[i] = elem_walk(tab[i], filter, ...) end
+        return tab
+    end
+
+    -- Walk a Lua table that represents a mapping.
+    local function walk_map (tab, ...)
         for k, v in pairs(tab) do tab[k] = elem_walk(v, ...) end
+        return tab
+    end
+
+    -- Walk a Lua table that represents a list or a mapping.
+    local function walk_table (tab, ...)
+        if select(2, keys(tab)) == #tab then return walk_list(tab, ...) end
+        return walk_map(tab, ...)
     end
 
     --- Walk an AST list element (e.g., `pandoc.OrderedList`).
     local function walk_list_elem (elem, ...)
-        local content = elem.content
-        for i = 1, #content do walk_table(content[i], ...) end
+        -- Null does not have content.
+        if not elem.content then return elem end
+        elem.content = elem_walk(elem.content, ...)
+        return elem
     end
 
-    -- Walk a document.
+    -- Walk a Pandoc document.
     local function walk_doc (doc, ...)
-        doc.meta = elem_walk(doc.meta, ...)
-        walk_table(doc.blocks, ...)
+        if doc.meta then doc.meta = elem_walk(doc.meta, ...) end
+        if doc.blocks then doc.blocks = elem_walk(doc.blocks, ...) end
+        return doc
     end
 
     -- Walking functions by Pandoc AST element type.
     local walkers = {
-        Meta = walk_table,
-        MetaBlocks = walk_table,
-        MetaList = walk_table,
-        MetaInlines = walk_table,
-        MetaMap = walk_table,
+        Meta = walk_map,
+        MetaBlocks = walk_list,
+        MetaList = walk_list,
+        MetaInlines = walk_list,
+        MetaMap = walk_map,
         BulletList = walk_list_elem,
         OrderedList = walk_list_elem,
-        Inlines = walk_table,
-        Blocks = walk_table,
-        Metas = walk_table,
+        Inlines = walk_list,
+        Blocks = walk_list,
+        Metas = walk_map,
         Pandoc = walk_doc
     }
 
@@ -1965,10 +2003,13 @@ do
     local function recurse (elem, et, filter, _seen)
         local walker = walkers[et]
         if walker then
-            walker(elem, filter, _seen)
+            elem = walker(elem, filter, _seen)
         elseif elem.content then
-            walk_table(elem.content, filter, _seen)
+            elem.content = elem_walk(elem.content, filter, _seen)
+        elseif type(elem) == 'table' then
+            elem = walk_table(elem, filter, _seen)
         end
+        return elem
     end
 
     --- Walk an AST element and apply a filter to matching elements.
@@ -1976,11 +2017,11 @@ do
     -- <h3>Differences to Pandoc's Walkers:</h3>
     --
     -- * The filter is applied to the given element itself.
-    -- * Changes to the AST, other than returning a new element, are ignored.
-    -- * The AST is traversed bottom-up or top-down, but *not* typewise.
-    -- * Support for filter keyword 'AstElement', which matches *any* element,
-    --   but *not* lists of elements.
-    -- * Documents and metadata are traversed, too.
+    -- * The AST is traversed bottom-up or top-down, but *not* typewise,
+    --   and matching elements are traversed, too.
+    -- * Support for the filter keywords 'Block', 'Inline', and 'AstElement',
+    --   which match any block, any inline, or *any* element respectively.
+    -- * Metadata fields and documents as a whole are traversed, too.
     --
     -- <h3>Direction of Traversal:</h3>
     --
@@ -1991,25 +2032,27 @@ do
     --
     -- The AST is traversed left-to-right either way.
     --
+    -- @caveats This function needs more testing.
+    --
     -- @tparam pandoc.AstElement elem A Pandoc AST element.
     -- @tparam {string=func,...} filter A filter.
-    -- @return Typically but not necessarily, a new Pandoc AST element.
+    -- @return Typically, but not necessarily, a new Pandoc AST element.
     --
     -- @function elem_walk
-    -- @fixme Traversal directions are not unit-tested.
     elem_walk = type_check('*', 'table', '?table')(
         function (elem, filter, _seen)
             if not _seen then _seen = {} end
             assert(not _seen[elem], 'cycle in data tree.')
             local traverse = filter.traverse or 'topdown'
             assert(traverse == 'bottomup' or traverse == 'topdown',
-                   'the AST is traversed "bottomup" or "topdown".')
+                   'the AST can only be traversed "bottomup" or "topdown".')
             local ets = {elem_type(elem)}
             local et = ets[1]
             if et then
                 _seen[elem] = true
-                elem = elem_clone(elem)
-                if traverse == 'bottomup' then recurse(elem, et, filter, _seen) end
+                if traverse == 'bottomup' then
+                    elem = recurse(elem, et, filter, _seen)
+                end
                 for i = 1, #ets do
                     local func = filter[ets[i]]
                     if func then
@@ -2017,13 +2060,12 @@ do
                         if new ~= nil then elem = new end
                     end
                 end
-                if traverse == 'topdown' then recurse(elem, et, filter, _seen) end
+                if traverse == 'topdown' then
+                    elem = recurse(elem, et, filter, _seen)
+                end
             elseif type(elem) == 'table' then
                 _seen[elem] = true
-                if elem.clone then elem = elem:clone()
-                              else elem = update({}, elem)
-                end
-                walk_table(elem, filter, _seen)
+                elem = walk_table(elem, filter, _seen)
             end
             return elem
         end
@@ -2033,7 +2075,6 @@ end
 
 --- Options
 -- @section
--- @todo Add more option types, above all, 'mapping' and 'boolean'.
 
 do
     -- luacheck: ignore stringify
@@ -2073,7 +2114,26 @@ do
         if n == 1 then return nil, err or format('not a %s.', decl) end
         decl = decl:gsub('<(%a+)', ' of %1s'):gsub('>', ''):
                     gsub('|', ' or '):gsub('%s+', ' ')
-        return nil, format('not a %s.', decl)
+        return nil, format('expected %s.', decl)
+    end
+
+    -- Convert a value to a Lua boolean.
+    --
+    -- @param val A value.
+    -- @treturn[1] bool A boolean.
+    -- @treturn[2] nil `nil` if the value cannot be converted to a boolean.
+    -- @treturn[2] string An error message.
+    function converters.boolean (val)
+        local t = type(val)
+        if t == 'boolean' then return val end
+        if elem_type(val) then val = stringify(val) end
+        if val then
+            val = val:lower()
+            if     includes({'y', 'yes', 't', 'true'}, val) then return true
+            elseif includes({'n', 'no', 'f', 'false'}, val) then return false
+            end
+        end
+        return nil, 'not a boolean value.'
     end
 
     -- Convert a value to a Lua string.
@@ -2109,13 +2169,13 @@ do
         return nil, 'not a number.'
     end
 
-    -- Convert values to lists.
+    -- Convert values to a list.
     --
     -- Tables are passed through as is.
     --
-    -- @param val A value or list of values.
+    -- @param val A value or a list of values.
     -- @treturn pandoc.List A list of values.
-    function converters.list (vals, decl)
+    function converters.array (vals, decl)
         if decl == '' then decl = 'string' end
         if
             -- Pandoc ≥ v2.17.
@@ -2128,13 +2188,13 @@ do
             local list = pandoc.List:new()
             for i = 1, #vals do
                 local v, err = convert(vals[i], decl)
-                if not v then return nil, format('item no. %d: %s', i, err) end
+                if v == nil then return nil, format('item no. %d: %s', i, err) end
                 list[i] = v
             end
             return list
         end
         local v, err = convert(vals, decl)
-        if not v then return nil, err end
+        if v == nil then return nil, err end
         return pandoc.List:new{v}
     end
 
@@ -2161,7 +2221,9 @@ do
     --
     -- @see Options:add
     -- @function Options:new
-    Options.new = type_check('table', '?table', '...')(
+    Options.new = type_check({
+        add = 'function'
+    }, '?table', '...')(
         function (proto, ...)
             local obj = Object.new(proto)
             if select('#', ...) > 0 then obj:add(...) end
@@ -2265,36 +2327,43 @@ do
     --
     -- <h3>Type Declaration Grammar:</h3>
     --
-    -- Configuration values can be of any of three types:
+    -- Configuration values can be of any of four types:
     --
+    -- * 'boolean'
     -- * 'number'
     -- * 'string'
-    -- * 'list'
+    -- * 'array'
     --
-    -- If an option is declared to be of the scalar types 'number' or 'string'
-    -- its value is required to be of the Lua type of the same name. However,
-    -- values are converted automatically if possible.
+    -- If an option is declared to be of one of the scalar types 'boolean',
+    -- 'number', or 'string', then its value is required to be of the Lua
+    -- type of the same name *or* convertible to that type; if an option is
+    -- declared as 'boolean', the strings 'true', 't', 'yes' and 'y' are
+    -- converted to `true`, and 'false', 'f', 'no' and 'n' to `false`
+    -- (case is ignored).
     --
-    -- If an option is declared to be a 'list', its value is required to be a
-    -- `pandoc.List`. However, if a scalar value is encountered where a list
-    -- is expected, the value is wrapped in a single-item list automatically.
+    -- If an option is declared to be an 'array', its value is required to be
+    -- of the Pandoc type `pandoc.List` or convertible to that type. However,
+    -- if a scalar value is encountered where an array is expected, the value
+    -- is wrapped in a single-item list automatically.
     --
-    -- The items of a list must all be of the same type, which is declared by
-    -- appending '<*T*>' to the literal 'list', where *T* is either the name
-    -- of a scalar type or another list declaration; it defaults to 'string'.
+    -- Items in an array must all be of the same type. That type is declared
+    -- by appending '<*T*>' to 'array', where *T* is either the name of a
+    -- scalar type or another array declaration (e.g., 'array<number>');
+    -- *T* defaults to 'string'.
     --
-    -- An option is declared to be of any of a list of types by joining type
-    -- names with a pipe symbol ('|'), for example, 'string|list'. The first
-    -- type that matches 'wins', even if winning requires a type conversion
-    -- (i.e., 'string|number' is, effectively, equivalent to 'string').
+    -- An option can be declared to be of any of a list of types by listing
+    -- multiple type names separated by a pipe symbol ('|'), for example,
+    -- 'string|list'. The first type that matches 'wins', even if winning
+    -- requires a type conversion (e.g., 'string|number' is, effectively,
+    -- equivalent to 'string').
     --
     -- In [Extended Backus-Naur Form](https://en.wikipedia.org/wiki/EBNF):
     --
-    -- > Scalar = 'number' | 'string'
+    -- > Scalar = 'boolean' | 'number' | 'string'
     -- >
-    -- > List = 'list', [ '<', ( scalar | list ), '>' ]
+    -- > Array = 'array', [ '<', ( scalar | array ), '>' ]
     -- >
-    -- > Type = scalar | list
+    -- > Type = scalar | array
     -- >
     -- > Type list = type, { '|', type }
     --
@@ -2304,12 +2373,13 @@ do
     --
     -- Parsers are given the converted value and should return
     -- either a new value or `nil` and an error message.
-    -- They are *not* called for `nil`.
+    --
+    -- Parsers are *not* invoked for `nil`.
     --
     -- @caveats
     --
     -- @{Options:add} throws an error if it is given a wrong option type
-    -- (e.g., 'int' or 'list[number]'). `opts_parse` accepts wrong option
+    -- (e.g., 'int' or 'array[number]'). `opts_parse` accepts wrong option
     -- types and only throws an error if it encounters an option that is
     -- supposed to be of that type.
     --
@@ -2338,6 +2408,7 @@ do
     --
     -- @see Options
     -- @function opts_parse
+    -- @todo Add type 'dict'.
     opts_parse = type_check('table|userdata', {
         name = 'string',
         type = '?string',
@@ -2358,7 +2429,7 @@ do
                     for _, func in pairs{convert, def.parse} do
                         if not func then break end
                         val, err = func(val, def.type)
-                        if not val then
+                        if val == nil then
                             return nil, key .. ': ' .. err
                         end
                     end

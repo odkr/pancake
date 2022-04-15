@@ -70,12 +70,14 @@ local pack = table.pack
 local unpack = table.unpack
 
 local List = pandoc.List
+local Header = pandoc.Header
 local MetaInlines = pandoc.MetaInlines
 local MetaMap = pandoc.MetaMap
 local Null = pandoc.Null
 local Pandoc = pandoc.Pandoc
 local Para = pandoc.Para
 local Str = pandoc.Str
+local Strong = pandoc.Strong
 
 local map = List.map
 local stringify = pandoc.utils.stringify
@@ -711,7 +713,7 @@ end
 -- luacheck: ignore test_split
 function test_split ()
     for input, message in pairs{
-        [{'string', 'ri', nil, ''}] = '.-%f[%a]expecting "l" or "r"%.$'
+        [{'string', 'pattern', nil, 'x'}] = '.-%f[%a]x: no such option%.$'
     } do
         assert_error_msg_matches(message, M.split, unpack(input))
     end
@@ -733,8 +735,9 @@ function test_split ()
         [{'CamelCaseTest', '%u', 2, 'r'}] =
             {'C', 'amelCaseTest', n = 2},
         [{'foobar', '[fb]', nil, 'l'}] = {'foo', 'bar', n = 2},
-        [{'foo*bar', '*', nil, nil, true}] = {'foo', 'bar', n = 2},
-        [{'foo.*bar', '.*', nil, nil, true}] = {'foo', 'bar', n = 2},
+        [{'foobar', '[fb]', nil, 'r'}] = {'f', 'oob', 'ar', n = 3},
+        [{'foo*bar', '*', nil, 'P'}] = {'foo', 'bar', n = 2},
+        [{'foo.*bar', '.*', nil, 'P'}] = {'foo', 'bar', n = 2},
         [{'$a$$b$c', '%f[%$]%$'}] = {'', 'a', '$b', 'c', n = 4},
         [{'foo', ''}] = {'', 'f', 'o', 'o', '', n = 5},
         [{'foo1bar2baz', '%f[%d]'}] = {'foo', '1bar', '2baz', n = 3},
@@ -742,8 +745,9 @@ function test_split ()
         [{'abc', 'b*'}] = {'', 'a', '', 'c', '', n = 5},
         [{'foobar', '[bo]*', nil, 'l'}] = {'f', 'ooba', 'r', n = 3},
         [{'foobar', '[bo]*', nil, 'r'}] = {'foob', 'a', 'r', n = 3},
-        [{'foobar', '[bo]*', nil, 'r', true}] = {'foobar', n = 1},
-        [{'CamelCase', '%f[%u]'}] = {'', 'Camel', 'Case', n = 3}
+        [{'foobar', '[bo]*', nil, 'Pr'}] = {'foobar', n = 1},
+        [{'CamelCase', '%f[%u]'}] = {'', 'Camel', 'Case', n = 3},
+        [{'CamelCase', '%f[%u]', nil, 'E'}] = {'Camel', 'Case', n = 2}
     } do
         assert_items_equals(M.tabulate(M.split(unpack(input))), output)
     end
@@ -1468,7 +1472,8 @@ function test_elem_type ()
         [Para{Str ''}] = {'Para', 'Block', 'AstElement', n = 3},
         [read_md_file(M.path_join(DATA_DIR, 'foo.md'))] = {'Pandoc', n = 1},
         [List{Str ''}] = {'Inlines', n = 1},
-        [{Para{Str ''}}] = {'Blocks', n = 1}
+        [{Para{Str ''}}] = {'Blocks', n = 1},
+        [List{Para{Str ''}, Header(1, {Str 'x'})}] = {'Blocks', n = 1}
     }
 
     if pandoc.types and PANDOC_VERSION >= {2, 17} then -- ?
@@ -1485,39 +1490,168 @@ end
 
 -- luacheck: ignore test_elem_walk
 function test_elem_walk ()
-    local fname = M.path_join(DATA_DIR, 'foo.md')
-    local doc, err = read_md_file(fname)
-    local id_flt = {AstElement = id}
-    local nilify_flt = {AstElement = nilify}
+    local md = [[
+# Foo
 
+This is a paragraph.
+
+1. One word (not really)
+2. Two words (true this time, oh wait)
+3. Three words (not even going to try)
+
+# Bar
+
+Quoting a list:
+
+> (a) A B C
+> (b) One two three
+> (c) Err, alpha, beta, gamma?
+
+# Baz
+
+| * Star
+| * *Star*
+| * **Star**
+]]
+    local doc = pandoc.read(md)
+    -- It is hard to deep-copy a Pandoc AST in a way
+    -- that works in *all* versions of Pandoc.
+    local cp = pandoc.read(md)
+
+    -- Test erroneous arguments.
     assert_error_msg_matches(
-        '.-%f[%a]the AST is traversed "bottomup" or "topdown".',
+        '.-%f[%a]the AST can only be traversed "bottomup" or "topdown".',
         M.elem_walk, doc, {
             AstElement = id,
             traverse = true
         }
     )
 
-    assert(doc, err)
-    assert_equals(doc, M.elem_walk(doc, id_flt))
-    assert_equals(doc, M.elem_walk(doc, nilify_flt))
+    -- Test whether elements are of the requested type.
+    for _, et in ipairs{
+        'Str',
+        'Inline',
+        'Para',
+        'Header',
+        'BulletList',
+        'OrderedList',
+        'Block',
+        'Blocks',
+        'Meta',
+        'MetaInline',
+        'MetaValue',
+        'Pandoc'
+    } do
+        M.elem_walk(doc, {[et] = function (el)
+            local ets = {M.elem_type(el)}
+            for i = 1, #ets do
+                if ets[i] == et then return end
+            end
+            error(string.format('expected %s, got %s.', et, concat(ets, ', ')))
+        end})
+    end
 
-    local yesify_flt = {Str = function (s)
-        if stringify(s) == 'no' then return Str 'yes' end
-    end}
-    local yes = M.elem_walk(Str 'no', yesify_flt)
-    assert_equals(stringify(yes), 'yes')
-    local no = M.elem_walk(Str 'no!', yesify_flt)
-    assert_equals(stringify(no), 'no!')
+    -- Test identity transformations.
+    for _, et in ipairs {
+        'Str',
+        'Inline',
+        'Para',
+        'Header',
+        'BulletList',
+        'OrderedList',
+        'Block',
+        'Blocks',
+        'Meta',
+        'MetaInline',
+        'MetaValue',
+        'Pandoc'
+    } do
+        for _, f in ipairs{id, nilify} do
+            assert_items_equals(M.elem_walk(doc, {[et] = f}), cp)
+        end
+    end
 
-    local elem = Para{Str 'no'}
-    local walked = M.elem_walk(elem, {
-        Str = function () return Str 'yes' end,
-        Para = function (p) if stringify(p) == 'no' then return Null() end end,
+    -- Actual transformations.
+    for _, et in ipairs{
+        'Str',
+        'Inline',
+        'Block',
+        'Blocks',
+        'Pandoc'
+    } do
+        -- luacheck: ignore doc
+        local doc = pandoc.read(md)
+        local walked = M.elem_walk(M.elem_clone(doc), {[et] = function (el)
+            local t, st = M.elem_type(el)
+            if     t:match 's$'   then return pandoc.List:new()
+            elseif st == 'Inline' then return Str ''
+            elseif st == 'Block'  then return Null()
+            end
+            return Pandoc({})
+        end})
+        assert_str_matches(stringify(walked), '^%s*$')
+    end
+
+    local function barify_inline (str)
+        return Str(str.text:gsub('foo', 'bar'))
+    end
+    local function barify_block (blk)
+        return Para(List{Str(stringify(blk):gsub('foo', 'bar'))})
+    end
+
+    for _, filter in ipairs {
+        {Str = barify_inline},
+        {Inline = barify_inline},
+        {Inlines = function (inlines)
+            return List.map(inlines, barify_inline)
+        end},
+        {Para = barify_block},
+        {Block = barify_block},
+        {Blocks = function (blocks)
+            return List.map(blocks, barify_block)
+        end}
+    } do
+        -- luacheck: ignore doc
+        local doc = pandoc.read 'foo'
+        assert_equals(stringify(M.elem_walk(doc, filter)), 'bar')
+    end
+
+    doc = pandoc.read '> Foo'
+    assert_equals(M.elem_walk(doc, {
+        BlockQuote = function (b) return Para{Strong(stringify(b))} end,
+        Str = function (s) return Str(s.text:gsub('Foo', 'Bar')) end
+    }), pandoc.read '**Bar**')
+
+    doc = pandoc.read '> # Foo'
+    local match = false
+    M.elem_walk(doc, {
+        BlockQuote = function () return Para{Str 'No header here.'} end,
+        Header = function () match = true end
+    })
+    assert_false(match)
+
+    doc = pandoc.read '> # Foo'
+    match = false
+    M.elem_walk(doc, {
+        BlockQuote = function () return Para{Str 'No header here.'} end,
+        Header = function () match = true end,
         traverse = 'bottomup'
     })
-    assert_equals(stringify(walked), 'yes')
-    assert_false(pandoc.utils.equals(elem, walked))
+    assert_true(match)
+
+    doc = pandoc.read [[
+---
+foo: foo
+...
+]]
+    local function barify_metas (metas)
+        return List.map(metas, barify_inline)
+    end
+    local barified = M.elem_walk(doc, {
+        MetaInlines = barify_metas,
+        Inlines = barify_metas
+    })
+    assert_equals(stringify(barified.meta.foo), 'bar')
 end
 
 
@@ -1552,6 +1686,7 @@ end
 
 do
     local meta = MetaMap{
+        ['err-nab'] = 'foo',
         ['err-type-syntax'] = 'foo',
         ['err-type-semantics'] = 'foo',
         ['err-nan'] = MetaInlines{Str 'NaN'},
@@ -1562,18 +1697,39 @@ do
         ['pre-err-list-nan-1'] = List:new{MetaInlines{Str 'NaN'}},
         ['pre-err-list-nan-2'] = List:new{0, MetaInlines{Str 'NaN'}},
         ['pre-err-list-nan-3'] = MetaInlines{Str 'NaN'},
+        ['err-alt-1'] = true,
+        ['err-alt-2'] = {'a'},
+        ['err-alt-3'] = {{{1}}},
+        ['bool-1'] = true,
+        ['bool-2'] = false,
+        ['bool-3'] = 'true',
+        ['bool-4'] = 'false',
+        ['bool-5'] = 'TRUE',
+        ['bool-6'] = 'F',
+        ['bool-7'] = 'T',
+        ['bool-8'] = 'No',
+        ['bool-9'] = 'yeS',
+        ['bool-10'] = 'N',
+        ['bool-11'] = 'Y',
         ['num'] = 3,
         ['add'] = '0',
         ['num-str-1'] = '3',
         ['pre-num-str-2'] = '3',
+        ['list-bool-1'] = List:new{false, true, 'f', 'yEs'},
+        ['list-bool-2'] = List:new{},
         ['list-num-1'] = List:new{MetaInlines{Str '1'}, MetaInlines{Str '2'}},
         ['list-num-2'] = MetaInlines{Str '1'},
+        ['list-num-3'] = List:new{},
         ['str'] =  MetaInlines{Str '1'},
         ['list-str-1'] =  List:new{MetaInlines{Str '1'}, MetaInlines{Str '2'}},
         ['list-str-2'] =  MetaInlines{Str '1'},
         ['list-list-1'] = List:new{List:new{MetaInlines{Str '1'}}},
         ['list-list-2'] = List:new{MetaInlines{Str '1'}},
-        ['list-list-3'] = MetaInlines{Str '1'}
+        ['list-list-3'] = MetaInlines{Str '1'},
+        ['alt-1'] = 'foo',
+        ['alt-2'] = 1,
+        ['alt-3'] = {1},
+        ['alt-4'] = {{1}},
     }
 
     local function make_options_parse_test (func)
@@ -1588,12 +1744,14 @@ do
             end
 
             for msg, input in pairs {
+                ['err-nab: not a boolean value.'] =
+                    {name = 'err_nab', type = 'boolean'},
                 ['err-nan: not a number.'] =
                     {name = 'err_nan', type = 'number'},
                 ['err-list-nan-1: item no. 1: not a number.'] =
-                    {name = 'err_list_nan-1', type = 'list<number>'},
+                    {name = 'err_list_nan-1', type = 'array<number>'},
                 ['err-list-nan-2: item no. 2: not a number.'] =
-                    {name = 'err_list_nan-2', type = 'list<number>'},
+                    {name = 'err_list_nan-2', type = 'array<number>'},
                 ['err-list-nan-3: not a number.'] =
                     {name = 'err-list-nan-3', type = 'number'},
                 ['pre-err-nan: not a number.'] =
@@ -1604,7 +1762,13 @@ do
                     name = 'num', type = 'number', parse = function ()
                         return nil, 'foo'
                     end
-                }
+                },
+                ['err-alt-1: expected array of arrays of numbers or string.'] =
+                    {name = 'err_alt_1', type = 'array<array<number>>|string'},
+                ['err-alt-2: expected array of arrays of numbers or string.'] =
+                    {name = 'err_alt_2', type = 'array<array<number>>|string'},
+                ['err-alt-3: expected array of arrays of numbers or string.'] =
+                    {name = 'err_alt_3', type = 'array<array<number>>|string'}
             } do
                 local ok, err = func({input}, meta)
                 assert_nil(ok)
@@ -1613,53 +1777,71 @@ do
 
             local opts = M.Options(
                 {name = 'num', type = 'number'},
+                {name = 'bool-1', type = 'boolean'},
+                {name = 'bool-2', type = 'boolean'},
+                {name = 'bool-3', type = 'boolean'},
+                {name = 'bool-4', type = 'boolean'},
+                {name = 'bool-5', type = 'boolean'},
+                {name = 'bool-6', type = 'boolean'},
+                {name = 'bool-7', type = 'boolean'},
+                {name = 'bool-8', type = 'boolean'},
+                {name = 'bool-9', type = 'boolean'},
+                {name = 'bool-10', type = 'boolean'},
+                {name = 'bool-11', type = 'boolean'},
                 {name = 'num_str_1', type = 'number'},
                 {prefix = 'pre', name = 'num_str_2', type = 'number'},
-                {name = 'list_num_1', type = 'list<number>'},
-                {name = 'list_num_2', type = 'list<number>'},
+                {name = 'list_bool_1', type = 'array<boolean>'},
+                {name = 'list_bool_2', type = 'array<boolean>'},
+                {name = 'list_num_1', type = 'array<number>'},
+                {name = 'list_num_2', type = 'array<number>'},
+                {name = 'list_num_3', type = 'array<number>'},
                 {name = 'str'},
-                {name = 'list_str_1', type = 'list<string>'},
-                {name = 'list_str_2', type = 'list'},
-                {name = 'list_list_1', type = 'list<list<number>>'},
-                {name = 'list_list_2', type = 'list<list<number>>'},
-                {name = 'list_list_3', type = 'list<list<number>>'},
+                {name = 'list_str_1', type = 'array<string>'},
+                {name = 'list_str_2', type = 'array'},
+                {name = 'list_list_1', type = 'array<array<number>>'},
+                {name = 'list_list_2', type = 'array<array<number>>'},
+                {name = 'list_list_3', type = 'array<array<number>>'},
                 {name = 'add', type = 'number', parse = function (n)
                     return n + 1
-                end}
+                end},
+                {name = 'alt-1', type = 'array<array<number>>|array<number>|string'},
+                {name = 'alt-2', type = 'array<array<number>>|array<number>|string'},
+                {name = 'alt-3', type = 'array<array<number>>|array<number>|string'},
+                {name = 'alt-4', type = 'array<array<number>>|array<number>|string'}
             )
 
             assert_items_equals(func(opts, meta), {
                 num = 3,
+                bool_1 = true,
+                bool_2 = false,
+                bool_3 = true,
+                bool_4 = false,
+                bool_5 = true,
+                bool_6 = false,
+                bool_7 = true,
+                bool_8 = false,
+                bool_9 = true,
+                bool_10 = false,
+                bool_11 = true,
                 num_str_1 = 3,
                 num_str_2 = 3,
+                list_bool_1 = {false, true, false, true},
+                list_bool_2 = {},
                 list_num_1 = {1, 2},
                 list_num_2 = {1},
+                list_num_3 = {},
                 str = '1',
                 list_str_1 = {'1', '2'},
                 list_str_2 = {'1'},
                 list_list_1 = {{1}},
                 list_list_2 = {{1}},
                 list_list_3 = {{1}},
-                add = 1
+                add = 1,
+                alt_1 = 'foo',
+                alt_2 = {{1}},
+                alt_3 = {{1}},
+                alt_4 = {{1}},
             })
-
-            local defs = {name = 'alt', type = 'list<list<number>>|list<number>|string'}
-            local exp = 'alt: not a list of lists of numbers or list of numbers or string.'
-            for _, input in ipairs{true, {'a'}, {{{1}}}} do
-                local ok, err = func({defs}, MetaMap{alt = input})
-                assert_nil(ok)
-                assert_equals(err, exp)
-            end
-
-            for input, output in pairs {
-                ['foo'] = 'foo',
-                [1] = {{1}},
-                [{1}] = {{1}},
-                [{{1}}] = {{1}}
-            } do
-                local result = func({defs}, MetaMap{alt = input})
-                assert_items_equals(result, {alt = output})
-            end
         end
     end
 
