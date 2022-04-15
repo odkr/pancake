@@ -5,23 +5,17 @@ Toolkit for writing [Lua filters](https://pandoc.org/lua-filters.html)
 for [Pandoc](https://pandoc.org). It is lightweight-ish, documented,
 and tested.
 
-*Pancake* aides with
-
-* maintaining compatibility accross different versions of Pandoc
-* working with complex data structures
-* error handling
-* string interpolation
-* object-oriented programming
-* file I/O and filesystem interaction
-* metadata parsing (i.e., configuration)
+DESCRIPTION
 
 See its [documentation](https://odkr.github.io/pancake/) for details.
 
 
 ## Requirements
 
-*Pancake* requires [Pandoc](https://www.pandoc.org/) ≥ v2.0.4.
+Pancake requires [Pandoc](https://www.pandoc.org/) ≥ v2.0.4.
 It should work under every operating system supported by Pandoc.
+
+It has been tested with Pandoc v2.9–v2.18 on Debian GNU/Linux and macOS.
 
 Your version of Pandoc must also support [Lua](https://www.lua.org/) ≥ v5.3.
 Pandoc ≥ v2 does so by default. However, the Pandoc package provided by
@@ -29,21 +23,18 @@ your operating system vendor may use an older version. Notably, the version
 of Pandoc available in the package repository of Debian v10 ("Buster") only
 supports Lua v5.1.
 
-That said, *Pancake* has only been tested with Pandoc v2.9–v2.18
-and only on Linux and macOS.
-
 
 ## Installation
 
-You use *Pancake* at your own risk.
+You use Pancake at your own risk.
 
 1. Download the
    [latest release](https://github.com/odkr/pancake/releases/latest).
 2. Unpack it.
-3. Move `pancake.lua` to a directory from where your filter can load it.
+3. Move `pancake.lua` someplace where your filter can load it from.
 
 If [LuaRocks](https://luarocks.org/) is installed on your system,
-you can also install *Pancake* by:
+you can simply asy:
 
 	luarocks install pancake
 
@@ -58,7 +49,7 @@ and the [source code](pancake) itself for details.
 
 ## Contact
 
-If there's something wrong with *Pancake*, please
+If there's something wrong with Pancake, please
 [open an issue](https://github.com/odkr/pancake/issues).
 
 
