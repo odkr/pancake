@@ -85,7 +85,7 @@ unset file
 # PRELUDE
 # =======
 
-temp_dir_make -d . -p rp
+temp_dir_make -p rp
 CLEANUP="git checkout develop; ${CLEANUP-}"
 
 
@@ -201,19 +201,5 @@ perl -ne '
 
 gh release create $pre --draft --title="v$tag" --notes-file="$notes_file" \
                   "v$tag" "$TEMP_DIR/$name-$tag."*
-
-warn -e "$SMSO" 'updating GitHub Pages ...'
-git subtree push --prefix doc origin gh-pages
-
-rockspec_template="m4/$name.rockspec.m4"
-if [ -e "$rockspec_template" ]
-then
-	warn -e "$SMSO" 'packing and uploading Lua Rock ...'
-	rockspec="$TEMP_DIR/$name-$vers-0.rockspec"
-	m4 -D NAME="$name" -D VERSION="$vers" \
-	   "$REPO/m4/macros.m4" "$REPO/$rockspec_template" >"$rockspec"
-	luarocks pack "$rockspec" || exit
-	luarocks upload --sign "$rockspec"
-fi
 
 warn -e "$GREEN" done.
