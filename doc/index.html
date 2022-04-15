@@ -150,7 +150,7 @@ pancake = <span class="global">require</span> <span class="string">'pancake'</sp
 	<td class="summary">Iterate over the key-value pairs of a table in a given order.</td>
 	</tr>
 	<tr>
-	<td class="name" nowrap><a href="#tabulate">tabulate (iter[, tab[, idx]])</a></td>
+	<td class="name" nowrap><a href="#tabulate">tabulate (iter[, tab[, idx=1]])</a></td>
 	<td class="summary">Tabulate the values that an iterator returns.</td>
 	</tr>
 	<tr>
@@ -161,7 +161,7 @@ pancake = <span class="global">require</span> <span class="string">'pancake'</sp
 <h2><a href="#Strings">Strings </a></h2>
 <table class="function_list">
 	<tr>
-	<td class="name" nowrap><a href="#split">split (str, pat[, max[, incl[, plain=false]]])</a></td>
+	<td class="name" nowrap><a href="#split">split (str, pattern[, max[, opts]])</a></td>
 	<td class="summary">Iterate over substrings of a string.</td>
 	</tr>
 </table>
@@ -894,7 +894,7 @@ a    <span class="number">1</span></pre>
 </dd>
     <dt>
     <a name = "tabulate"></a>
-    <strong>tabulate (iter[, tab[, idx]])</strong>
+    <strong>tabulate (iter[, tab[, idx=1]])</strong>
     </dt>
     <dd>
     Tabulate the values that an iterator returns.
@@ -919,18 +919,15 @@ a    <span class="number">1</span></pre>
         </li>
         <li><span class="parameter">idx</span>
          An index to start at.
-         (<em>optional</em>)
+         (<em>default</em> 1)
         </li>
     </ul>
 
     <h3>Returns:</h3>
     <ol>
-        <li>
-           <span class="types"><span class="type">tab</span></span>
-        The values returned by the iterator.</li>
-        <li>
-           <span class="types"><span class="type">int</span></span>
-        The number of values.</li>
+
+           <span class="types"><span class="type">{...,n=number}</span></span>
+        The values returned by the iterator.
     </ol>
 
 
@@ -990,10 +987,24 @@ a    b    c</pre>
     <dl class="function">
     <dt>
     <a name = "split"></a>
-    <strong>split (str, pat[, max[, incl[, plain=false]]])</strong>
+    <strong>split (str, pattern[, max[, opts]])</strong>
     </dt>
     <dd>
-    Iterate over substrings of a string.
+    Iterate over substrings of a string.</p>
+
+<p> <h3>Options:</h3></p>
+
+<p> <code>split</code> accepts a string of option characters:</p>
+
+<ul>
+<li>&lsquo;P&rsquo;: Disable pattern matching.</li>
+<li>&lsquo;E&rsquo;: Skip empty substrings.</li>
+<li>&lsquo;l&rsquo;: Add seperator to left of substring; implies &lsquo;E&rsquo;.</li>
+<li>&lsquo;r&rsquo;: Add seperator to right; implies &lsquo;E&rsquo;.</li>
+</ul>
+
+
+<p> An empty string of options is ignored silently.
 
     <h3>Caveats:</h3>
     <ul>
@@ -1010,7 +1021,7 @@ a    b    c</pre>
             <span class="types"><a class="type" href="https://www.lua.org/manual/5.1/manual.html#5.4">string</a></span>
          A string.
         </li>
-        <li><span class="parameter">pat</span>
+        <li><span class="parameter">pattern</span>
             <span class="types"><a class="type" href="https://www.lua.org/manual/5.1/manual.html#5.4">string</a></span>
          Where to split the string.
         </li>
@@ -1019,18 +1030,10 @@ a    b    c</pre>
          Split the string into at most that many substrings.
          (<em>optional</em>)
         </li>
-        <li><span class="parameter">incl</span>
+        <li><span class="parameter">opts</span>
             <span class="types"><a class="type" href="https://www.lua.org/manual/5.1/manual.html#5.4">string</a></span>
-         Include separators in substrings?
-  &lsquo;l&rsquo; includes them on the left,
-  &lsquo;r&rsquo; on the right.
-  If they are included, the iterator never returns the empty string.
+         Option string.
          (<em>optional</em>)
-        </li>
-        <li><span class="parameter">plain</span>
-            <span class="types"><span class="type">bool</span></span>
-         Disable pattern matching facilities?
-         (<em>default</em> false)
         </li>
     </ul>
 
@@ -1049,6 +1052,11 @@ a    b    c</pre>
 &gt;     <span class="global">print</span>(s)
 &gt; <span class="keyword">end</span>
 
+Camel
+Case
+&gt; <span class="keyword">for</span> s <span class="keyword">in</span> split(<span class="string">'CamelCase'</span>, <span class="string">'%f[%u]'</span>, <span class="keyword">nil</span>, <span class="string">'E'</span>) <span class="keyword">do</span>
+&gt;     <span class="global">print</span>(s)
+&gt; <span class="keyword">end</span>
 Camel
 Case
 &gt; <span class="keyword">for</span> s <span class="keyword">in</span> split(<span class="string">'foobar'</span>, <span class="string">'[fb]'</span>, <span class="keyword">nil</span>, <span class="string">'l'</span>) <span class="keyword">do</span>
@@ -1194,9 +1202,9 @@ bar is bar.
 
 <p> Variables can also be looked up by a function. The function is run
  in protected mode. If it throws an error, <code>vars_sub</code> will return
- <code>nil</code> and the error object thrown by the function. Note, this mode
- does <em>not</em> support multi-dimensional lookups (<code>${foo.bar}</code>),
- pipes (<code>${foo|bar}</code>), or recursive substitution.</p>
+ <code>nil</code> and the error object thrown by the function. This mode does
+ <em>not</em> support multi-dimensional lookups (<code>${foo.bar}</code>), pipes
+ (<code>${foo|bar}</code>), or recursive substitution.</p>
 
 <pre><code>&gt; vars_sub(
 &gt;     '${foo} is bar.',
@@ -2148,8 +2156,8 @@ foo    bar</pre>
 <p> <h3>Printout:</h3></p>
 
 <p> Prefixed with the filename of the script and &lsquo;: &rsquo;,
- and terminated with <a href="index.html#EOL">EOL</a>.
- Non-string values are coerced to strings.</p>
+ terminated with <a href="index.html#EOL">EOL</a>.
+ Non-strings are coerced to strings.</p>
 
 <p> <h3>Message priority:</h3></p>
 
@@ -2159,8 +2167,8 @@ foo    bar</pre>
 <p> <h3>Variable substitution:</h3></p>
 
 <p> If string values contain variable names, they are replaced with the
- values of the local variables, the upvalues of the calling function,
- or, if there are no local variables or upvalues of the given names,
+ values of the local variables, of the upvalues of the calling function,
+ or, if there are no local variables or upvalues of the given names, of
  <code>_ENV</code>. See <a href="index.html#vars_sub">vars_sub</a> for the syntax and <a href="index.html#vars_get">vars_get</a> for limitations.</p>
 
 <p> <h3>Options:</h3></p>
@@ -2295,11 +2303,11 @@ foo    bar</pre>
 
 <ul>
 <li>The filter is applied to the given element itself.</li>
-<li>Changes to the AST, other than returning a new element, are ignored.</li>
-<li>The AST is traversed bottom-up or top-down, but <em>not</em> typewise.</li>
-<li>Support for filter keyword &lsquo;AstElement&rsquo;, which matches <em>any</em> element,
-but <em>not</em> lists of elements.</li>
-<li>Documents and metadata are traversed, too.</li>
+<li>The AST is traversed bottom-up or top-down, but <em>not</em> typewise,
+and matching elements are traversed, too.</li>
+<li>Support for the filter keywords &lsquo;Block&rsquo;, &lsquo;Inline&rsquo;, and &lsquo;AstElement&rsquo;,
+which match any block, any inline, or <em>any</em> element respectively.</li>
+<li>Metadata fields and documents as a whole are traversed, too.</li>
 </ul>
 
 
@@ -2315,6 +2323,9 @@ but <em>not</em> lists of elements.</li>
 
 <p> The AST is traversed left-to-right either way.
 
+    <h3>Caveats:</h3>
+    <ul>
+         This function needs more testing.
     </ul>
     </ul>
     </ul>
@@ -2336,7 +2347,7 @@ but <em>not</em> lists of elements.</li>
     <h3>Returns:</h3>
     <ol>
 
-        Typically but not necessarily, a new Pandoc AST element.
+        Typically, but not necessarily, a new Pandoc AST element.
     </ol>
 
 
@@ -2560,39 +2571,46 @@ if prefix then fieldname = prefix .. '-' .. fieldname end
 
 <p> <h3>Type Declaration Grammar:</h3></p>
 
-<p> Configuration values can be of any of three types:</p>
+<p> Configuration values can be of any of four types:</p>
 
 <ul>
+<li>&lsquo;boolean&rsquo;</li>
 <li>&lsquo;number&rsquo;</li>
 <li>&lsquo;string&rsquo;</li>
-<li>&lsquo;list&rsquo;</li>
+<li>&lsquo;array&rsquo;</li>
 </ul>
 
 
-<p> If an option is declared to be of the scalar types &lsquo;number&rsquo; or &lsquo;string&rsquo;
- its value is required to be of the Lua type of the same name. However,
- values are converted automatically if possible.</p>
+<p> If an option is declared to be of one of the scalar types &lsquo;boolean&rsquo;,
+ &lsquo;number&rsquo;, or &lsquo;string&rsquo;, then its value is required to be of the Lua
+ type of the same name <em>or</em> convertible to that type; if an option is
+ declared as &lsquo;boolean&rsquo;, the strings &lsquo;true&rsquo;, &rsquo;t', &lsquo;yes&rsquo; and &lsquo;y&rsquo; are
+ converted to <code>true</code>, and &lsquo;false&rsquo;, &lsquo;f&rsquo;, &lsquo;no&rsquo; and &lsquo;n&rsquo; to <code>false</code>
+ (case is ignored).</p>
 
-<p> If an option is declared to be a &lsquo;list&rsquo;, its value is required to be a
- <code>pandoc.List</code>. However, if a scalar value is encountered where a list
- is expected, the value is wrapped in a single-item list automatically.</p>
+<p> If an option is declared to be an &lsquo;array&rsquo;, its value is required to be
+ of the Pandoc type <code>pandoc.List</code> or convertible to that type. However,
+ if a scalar value is encountered where an array is expected, the value
+ is wrapped in a single-item list automatically.</p>
 
-<p> The items of a list must all be of the same type, which is declared by
- appending &lsquo;&lt;<em>T</em>>&rsquo; to the literal &lsquo;list&rsquo;, where <em>T</em> is either the name
- of a scalar type or another list declaration; it defaults to &lsquo;string&rsquo;.</p>
+<p> Items in an array must all be of the same type. That type is declared
+ by appending &lsquo;&lt;<em>T</em>>&rsquo; to &lsquo;array&rsquo;, where <em>T</em> is either the name of a
+ scalar type or another array declaration (e.g., &lsquo;array<number>&rsquo;);
+ <em>T</em> defaults to &lsquo;string&rsquo;.</p>
 
-<p> An option can be declared to be of any of a list of types separated
- by the pipe symbol (&lsquo;|&rsquo;), for example, &lsquo;string|list&rsquo;. The first type
- that matches &lsquo;wins&rsquo;, even if winning requires a type conversion
- (i.e., &lsquo;string|number&rsquo; is, effectively, the same as &lsquo;string&rsquo;).</p>
+<p> An option can be declared to be of any of a list of types by listing
+ multiple type names separated by a pipe symbol (&lsquo;|&rsquo;), for example,
+ &lsquo;string|list&rsquo;. The first type that matches &lsquo;wins&rsquo;, even if winning
+ requires a type conversion (e.g., &lsquo;string|number&rsquo; is, effectively,
+ equivalent to &lsquo;string&rsquo;).</p>
 
 <p> In <a href="https://en.wikipedia.org/wiki/EBNF">Extended Backus-Naur Form</a>:</p>
 
-<blockquote><p>Scalar = &lsquo;number&rsquo; | &lsquo;string&rsquo;</p>
+<blockquote><p>Scalar = &lsquo;boolean&rsquo; | &lsquo;number&rsquo; | &lsquo;string&rsquo;</p>
 
-<p>List = &lsquo;list&rsquo;, [ &lsquo;&lt;&rsquo;, ( scalar | list ), &lsquo;>&rsquo; ]</p>
+<p>Array = &lsquo;array&rsquo;, [ &lsquo;&lt;&rsquo;, ( scalar | array ), &lsquo;>&rsquo; ]</p>
 
-<p>Type = list | scalar</p>
+<p>Type = scalar | array</p>
 
 <p>Type list = type, { &lsquo;|&rsquo;, type }</p></blockquote>
 
@@ -2601,13 +2619,14 @@ if prefix then fieldname = prefix .. '-' .. fieldname end
 <p> <h3>Parse Protocol:</h3></p>
 
 <p> Parsers are given the converted value and should return
- either a new value or <code>nil</code> and an error message.
- They are <em>not</em> called for <code>nil</code>.
+ either a new value or <code>nil</code> and an error message.</p>
+
+<p> Parsers are <em>not</em> invoked for <code>nil</code>.
 
     <h3>Caveats:</h3>
     <ul>
           <a href="index.html#Options:add">Options:add</a> throws an error if it is given a wrong option type
- (e.g., &lsquo;int&rsquo; or &lsquo;list[number]&rsquo;). <code>opts_parse</code> accepts wrong option
+ (e.g., &lsquo;int&rsquo; or &lsquo;array[number]&rsquo;). <code>opts_parse</code> accepts wrong option
  types and only throws an error if it encounters an option that is
  supposed to be of that type.
     </ul>
@@ -2670,7 +2689,7 @@ number</pre>
 </div> <!-- id="main" -->
 <div id="about">
 <i>generated by <a href="http://github.com/stevedonovan/LDoc">LDoc 1.4.6</a></i>
-<i style="float:right;">Last updated 2022-04-13 22:42:16 </i>
+<i style="float:right;">Last updated 2022-04-15 19:06:35 </i>
 </div> <!-- id="about" -->
 </div> <!-- id="container" -->
 </body>
