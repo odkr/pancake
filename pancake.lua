@@ -16,8 +16,8 @@
 --
 -- Pancake automatically loads Pandoc's modules (e.g., `pandoc.system`) into
 -- the global namespace; this is useful when you are using older versions of
--- Pandoc, which do not do this automatically. So, you may want to load it
--- *before* setting up a per-function or per-module environment.
+-- Pandoc, which do not do this automatically. So you should load it *before*
+-- setting up a per-function or per-module environment.
 --
 -- @author Odin Kroeger
 -- @copyright 2022 Odin Kroeger
@@ -42,12 +42,13 @@ if pandoc.types then
     end
 end
 
--- Set up a per-module environment.
+-- Set up per-module environment.
 local _G = _G
 
 local assert = assert
 local error = error
 local getmetatable = getmetatable
+local ipairs = ipairs
 local next = next
 local pairs = pairs
 local pcall = pcall
@@ -86,7 +87,7 @@ local includes = pandoc.List.includes
 --- Metadata
 -- @section
 
---- *Pancake*'s version.
+--- Pancake's version.
 VERSION = '1.0.0b18'
 
 --- System
@@ -246,9 +247,9 @@ end
 --
 -- See <http://lua-users.org/wiki/FinalizedExceptions>.
 --
--- @func[opt] fin Called before an error is thrown.
 -- @func[opt] msgh Given the error and the caller's variables,
 --  should return a new error.
+-- @func[opt] finalise Called before an error is thrown.
 -- @treturn func An assertion function.
 --
 -- @usage
@@ -267,12 +268,12 @@ end
 --
 -- @function asserter
 asserter = type_check('?function', '?function')(
-    function (fin, msgh)
+    function (msgh, finalise)
         return function (ok, ...)
             if ok then return ok, ... end
-            if fin then fin() end
+            if finalise then finalise() end
             local err = ...
-            if msgh then err = msgh(err, vars_get(3)) end
+            if msgh then err = assert(msgh(err, vars_get(3))) end
             error(err, 0)
         end
     end
@@ -476,7 +477,7 @@ order = type_check('table')(
 sorted = type_check('table', '?function', '?boolean')(
     function (tab, func, raw)
         local mt = getmetatable(tab)
-        if mt then
+        if type(mt) == 'table' then
             if not func then func = mt.sort end
             if raw == nil then raw = mt.__pairs == sorted end
         end
@@ -543,45 +544,50 @@ update = type_check('table', '?table|userdata', '...')(
     end
 )
 
---- Apply a function to each node of a tree.
+--- Apply a function to every node in a tree.
 --
--- * Nodes are only changed if the function returns a non-`nil` value.
--- * The tree is walked bottom-up.
--- * Handles cyclic data structures.
+-- * Scalars are only change if
+--   the given function does *not* return `nil`.
+-- * Tables are changed *inplace*.
+-- * The tree is traversed left-to-right and top-to-bottom.
 --
 -- @param val A value.
 -- @func func A function.
--- @return A changed value.
+-- @return A value.
 --
 -- @function walk
 walk = type_check('*', 'function', '?table')(
     function (val, func, _seen)
-        if type(val) ~= 'table' then
-            local ret = func(val)
-            if ret == nil then return val end
-            return ret
-        end
-        if     not _seen  then _seen = {}
-        elseif _seen[val] then return _seen[val]
-        end
-        local ret = {}
-        local mt = getmetatable(val)
-        if type(mt) == 'table' then setmetatable(ret, mt) end
-        _seen[val] = ret
-        for k, v in pairs(val) do
-            if type(v) == 'table' then v = walk(v, func, _seen) end
-            local new = func(v)
-            if new == nil then ret[k] = v
-                          else ret[k] = new
+        local result = func(val)
+        if result == nil then result = val end
+
+        local t = type(result)
+        if t == 'table' then
+            if     not _seen  then _seen = {}
+            elseif _seen[val] then return val
+            end
+            _seen[val] = true
+
+            local iter, init
+            if select(2, keys(result)) == #result then
+                iter = ipairs(result)
+                init = 0
+            else
+                iter = pairs(result)
+            end
+
+            for k, v in iter, result, init do
+                local n = walk(v, func, _seen)
+                if n ~= nil then result[k] = n end
             end
         end
-        return ret
+
+        return result
     end
 )
 
----------
--- Strings
---
+
+--- Strings
 -- @section
 
 --- Iterate over substrings of a string.
@@ -782,9 +788,10 @@ do
     -- @treturn string The value of the expression.
     -- @raise See @{vars_sub}.
     local function expand (seen, vars, exp)
-        -- luacheck: ignore assert msgh
-        local function msgh (err) return format('${%s}: %s', exp, err) end
-        local assert = asserter(nil, msgh)
+        -- luacheck: ignore assert
+        local assert = asserter(function (err)
+            return format('${%s}: %s', exp, err)
+        end)
         local path, pipe = unpack(tabulate(split(exp, '%s*|%s*', 2)))
         assert(not seen[path], 'cycle in lookup.')
         seen[path] = true
@@ -865,8 +872,6 @@ do
     --    > )
     --    bar is bar.
     --
-    -- The expression as a whole must evaluate either to a string or a number.
-    --
     -- Variables can also be looked up by a function. The function is run
     -- in protected mode. If it throws an error, `vars_sub` will return
     -- `nil` and the error object thrown by the function. This mode does
@@ -880,6 +885,8 @@ do
     --    >     end
     --    > )
     --    bar is bar.
+    --
+    -- The expression as a whole must evaluate either to a string or a number.
     --
     -- @string str A string.
     -- @tparam func|tab vars A mapping of variable names to values.
@@ -908,7 +915,7 @@ end
 
 do
     -- luacheck: ignore assert
-    local assert = asserter(nil, vars_sub)
+    local assert = asserter(vars_sub)
 
     -- Look up a variable in the environment.
     --
@@ -1002,8 +1009,8 @@ Object = setmetatable({}, {
 --
 -- Set a table's metatable to a copy of the objects's metatable, then set the
 -- table's `__index` metavalue to the object. If no table is given, create
--- one. If a metatable is given, override the table's new metatable with
--- that table. In other words,
+-- one. If a metatable is given, override the fields in the table's new
+-- metatable with those of that table. In other words,
 --
 --     Object:clone(tab, mt)
 --
@@ -1076,7 +1083,7 @@ Object.new = type_check({clone = 'function'}, '?table', '...')(
 -- that function is called with the table as its only argument and whatever it
 -- returns is returned as the value of the given index. If `getters` does
 -- not contain a function of that name, the name is looked up using the
--- table's *old* `__index` metavalue.
+-- table's *previous* `__index` metavalue.
 --
 -- @caveats
 --
@@ -1737,8 +1744,8 @@ end
 
 --- Make a shallow copy of a Pandoc AST element.
 --
--- @tparam pandoc.AstElement elem A Pandoc AST element.
--- @treturn pandoc.AstElement The clone.
+-- @tparam userdata|table elem A Pandoc AST element.
+-- @treturn userdata|table The clone.
 --
 -- @function elem_clone
 if not pandoc.types or PANDOC_VERSION < {2, 15} then
@@ -1771,8 +1778,8 @@ else
 end
 
 do
-    -- A mapping of types to their higher-order types.
-    local super = {
+    -- A mapping of types to their immediate super-types.
+    local super_types = {
         Meta = 'AstElement',
         MetaValue = 'AstElement',
         MetaBlocks = 'Meta',
@@ -1819,209 +1826,255 @@ do
         Underline = 'Inline'
     }
 
-    -- Get the type of the items an array.
+    -- A mapping of type names to a list of their super-types.
+    local type_hierarchy = {}
+    for t in pairs(super_types) do
+        local ts = {}
+        type_hierarchy[t] = ts
+        while t do
+            ts[#ts + 1] = t
+            t = super_types[t]
+        end
+    end
+
+    -- Get the common super-type of items in a list, if any.
     --
-    -- @tparam pandoc.List items Items.
+    -- @tparam pandoc.List|table list A list.
     -- @treturn[1] string A Pandoc AST type.
-    -- @treturn[2] nil `nil` if the given value is not a list.
-    -- @treturn[2] string An error message.
-    local function items_type (items, ...)
-        local cnt = {}
-        local n = 0
-        while true do
-            local i = n + 1
-            local item = items[i]
-            if item == nil then break end
-            n = i
-            local et, est = elem_type(item, ...)
-            if not et or not est then break end
-            cnt[est] = (cnt[est] or 0) + 1
+    -- @treturn[2] nil `nil` if the list is *not* made up of
+    --  AST elements that share the same super-type.
+    local function list_type (list, _seen)
+        if     not _seen   then _seen = {}
+        elseif _seen[list] then error 'cycle in data tree.'
         end
-        local st, idx = next(cnt)
-        if st and n == idx then return st end
-        return nil, 'not an array of Pandoc elements.'
+        _seen[list] = true
+
+        local n = #list
+        if n == 0 then return end
+        local et, super = elem_type(list[1], _seen)
+        if not super or not et or et:match '^Meta' then return end
+        for i = 2, n do
+            local et_i, super_i = elem_type(list[i], _seen)
+            if not et_i or super_i ~= super then return end
+        end
+        return super .. 's'
     end
 
-    -- Get the type of a Pandoc element (worker).
+    --- Get the Pandoc type of a Pandoc AST element.
     --
-    -- @tparam pandoc.AstElement el A Pandoc AST element.
-    -- @treturn[1] string A type (e.g., 'Str').
-    -- @treturn[2] nil `nil` if the given value is not a Pandoc AST element.
-    -- @treturn[2] string An error message.
-    --
-    -- @function et_type
-    local el_type
-    if not pandoc.types or PANDOC_VERSION < {2, 15} then
-        function el_type (el, ...)
-            if type(el) == 'table' then
-                -- This works even if elem.tag does not.
-                local mt = getmetatable(el)
-                if mt and mt.__type and mt.__type.name then
-                    return mt.__type.name
-                end
-
-                -- Arrays of AST elements of the same type (e.g., 'Inlines').
-                local at = items_type(el, ...)
-                if at then return at .. 's' end
-            end
-            return nil, 'not a Pandoc AST element.'
-        end
-    elseif PANDOC_VERSION < {2, 17} then
-        function el_type (el, ...)
-            local t = type(el)
-            if t == 'userdata' or t == 'table' then
-                -- Use the tag, if there is one.
-                if el.tag then return el.tag end
-
-                -- Arrays of AST elements of the same type (e.g., 'Inlines').
-                if t == 'table' then
-                    local at = items_type(el, ...)
-                    if at then return at .. 's' end
-                end
-
-                -- If this point is reached, then there is no better way to
-                -- determine whether an element is a Pandoc document.
-                if
-                    el.meta   and
-                    el.blocks and
-                    t == 'userdata'
-                then return 'Pandoc' end
-            end
-            return nil, 'not a Pandoc AST element.'
-        end
-    else
-        local pandoc_type = pandoc.utils.type
-        function el_type (el, ...)
-            local t = type(el)
-            if t == 'userdata' or t == 'table' then
-                -- Use the tag, if there is one.
-                if el.tag then return el.tag end
-
-                -- Otherwise, use pandoc.utils.type.
-                local et = pandoc_type(el)
-                if
-                    et:match '^[A-Z]' and
-                    et ~= 'Meta'      and
-                    et ~= 'List'
-                then return et end
-
-                -- pandoc.utils.type doesn't detect all arrays.
-                if t == 'table' or et == 'List' then
-                    local lt = items_type(el, ...)
-                    if lt then return lt .. 's' end
-                end
-            end
-            return nil, 'not a Pandoc AST element.'
-        end
-    end
-
-    --- Get the type of a Pandoc AST element.
-    --
-    -- @tparam pandoc.AstElement elem A Pandoc AST element.
-    -- @treturn[1] string A type (e.g., 'Str').
-    -- @treturn[1] string|nil A super-type (e.g., 'Block' or 'Meta').
-    -- @treturn[1] string|nil ⋮.
+    -- @tparam userdata|table elem A Pandoc AST element.
+    -- @treturn[1] string A type (e.g., 'Str', 'Para', or 'Inlines').
+    -- @treturn[1] string|nil A super-type (i.e., 'Inline', 'Block', or 'Meta').
+    -- @treturn[1] string|nil A super-type (i.e., 'AstElement').
     -- @treturn[2] nil `nil` if the given value is not a Pandoc AST element.
     -- @treturn[2] string An error message.
     --
     -- @function elem_type
-    function elem_type (elem, _seen)
-        if     not _seen   then _seen = {}
-        elseif _seen[elem] then error 'cycle in data tree.'
+    if not pandoc.types or PANDOC_VERSION < {2, 15} then
+        function elem_type (elem, _seen)
+            if type(elem) == 'table' then
+                local et
+
+                -- This works even when elem.tag does not.
+                local mt = getmetatable(elem)
+                if mt and mt.__type and mt.__type.name then
+                    et = mt.__type.name
+
+                -- Arrays of AST elements of the same type (e.g., 'Inlines').
+                else
+                    et = list_type(elem, _seen)
+                end
+
+                if et then
+                    local ets = type_hierarchy[et]
+                    if ets then return unpack(ets) end
+                    return et
+                end
+            end
+
+            return nil, 'not a Pandoc AST element.'
         end
-        _seen[elem] = true
-        local et, err = el_type(elem, _seen)
-        if not et then return nil, err end
-        local ets = {}
-        local n = 0
-        while et do
-            n = n + 1
-            ets[n] = et
-            et = super[et]
+    elseif PANDOC_VERSION < {2, 17} then
+        function elem_type (elem, _seen)
+            local t = type(elem)
+            if t == 'userdata' or t == 'table' then
+                local et
+
+                -- Use the tag, if there is one.
+                if elem.tag then
+                    et = elem.tag
+
+                -- Arrays of AST elements of the same type (e.g., 'Inlines').
+                elseif t == 'table' then
+                    et = list_type(elem, _seen)
+
+                -- If this point is reached, then there is no better way to
+                -- determine whether an element is a Pandoc document.
+                elseif t == 'userdata' and elem.blocks then
+                    et = 'Pandoc'
+                end
+
+                if et then
+                    local ets = type_hierarchy[et]
+                    if ets then return unpack(ets) end
+                    return et
+                end
+            end
+            return nil, 'not a Pandoc AST element.'
         end
-        return unpack(ets)
+    else
+        -- luacheck: ignore type
+        local type = pandoc.utils.type
+        function elem_type (elem, _seen)
+            local et
+            local t = type(elem)
+
+            -- pandoc.utils.type does not catch all arrays of AST elements.
+            if t == 'List' or t == 'table' then
+                et = list_type(elem, _seen)
+
+            -- Check if it is a Pandoc AST element.
+            elseif t:match '^%u' then
+                if elem.tag then
+                    et = elem.tag
+                else
+                    et = t
+                end
+            end
+
+            if et then
+                local ets = type_hierarchy[et]
+                if ets then return unpack(ets) end
+                return et
+            end
+
+            return nil, 'not a Pandoc AST element.'
+        end
     end
 end
 
 do
     -- Walk a Lua table that represents a list.
-    local function walk_list (tab, filter, ...)
-        for i = 1, #tab do tab[i] = elem_walk(tab[i], filter, ...) end
-        return tab
+    local function walk_list (func, tab, ...)
+        for i = 1, #tab do tab[i] = func(tab[i], ...) end
     end
 
     -- Walk a Lua table that represents a mapping.
-    local function walk_map (tab, ...)
-        for k, v in pairs(tab) do tab[k] = elem_walk(v, ...) end
-        return tab
+    local function walk_map (func, tab, ...)
+        for k, v in pairs(tab) do tab[k] = func(v, ...) end
     end
 
     -- Walk a Lua table that represents a list or a mapping.
-    local function walk_table (tab, ...)
-        if select(2, keys(tab)) == #tab then return walk_list(tab, ...) end
-        return walk_map(tab, ...)
-    end
-
-    --- Walk an AST list element (e.g., `pandoc.OrderedList`).
-    local function walk_list_elem (elem, ...)
-        -- Null does not have content.
-        if not elem.content then return elem end
-        elem.content = elem_walk(elem.content, ...)
-        return elem
+    local function walk_table (func, tab, ...)
+        if select(2, keys(tab)) == #tab
+            then walk_list(func, tab, ...)
+            else walk_map(func, tab, ...)
+        end
     end
 
     -- Walk a Pandoc document.
-    local function walk_doc (doc, ...)
-        if doc.meta then doc.meta = elem_walk(doc.meta, ...) end
-        if doc.blocks then doc.blocks = elem_walk(doc.blocks, ...) end
-        return doc
+    local function walk_doc (func, doc, ...)
+        if doc.meta then doc.meta = func(doc.meta, ...) end
+        if doc.blocks then doc.blocks = func(doc.blocks, ...) end
     end
 
     -- Walking functions by Pandoc AST element type.
     local walkers = {
-        Meta = walk_map,
-        MetaBlocks = walk_list,
         MetaList = walk_list,
-        MetaInlines = walk_list,
         MetaMap = walk_map,
-        BulletList = walk_list_elem,
-        OrderedList = walk_list_elem,
+        MetaBlocks = walk_list,
+        MetaInlines = walk_list,
         Inlines = walk_list,
         Blocks = walk_list,
-        Metas = walk_map,
         Pandoc = walk_doc
     }
 
-    -- Recurse into the child nodes of an element.
+    --- Apply a function to the children of an element.
+    --
+    -- `elem_recurse` aides with writing walkers. Any function `f` that takes
+    -- an AST element `e` as first argument and returns an updated AST element
+    -- can be turned into a walker by calling `elem_recurse(f, e)` from within
+    -- that function.
+    --
+    -- @tip If you know the element's Pandoc type,
+    --  passing it on speeds up `elem_recurse` by about %25.
     --
     -- @caveats The element is modified *in-place*.
     --
-    -- @tparam pandoc.AstElement elem A Pandoc AST element.
-    -- @string et The element's type.
-    -- @tparam {string=fun,...} filter A filter.
-    -- @tparam {string=bool,...} _seen Elements that have already been seen.
-    local function recurse (elem, et, filter, _seen)
-        local walker = walkers[et]
-        if walker then
-            elem = walker(elem, filter, _seen)
-        elseif elem.content then
-            elem.content = elem_walk(elem.content, filter, _seen)
-        elseif type(elem) == 'table' then
-            elem = walk_table(elem, filter, _seen)
+    -- @string[opt] et The type of the element (e.g., 'Blocks', 'Str').
+    -- @func func A function to apply to the element.
+    -- @tparam userdata|table elem A Pandoc AST element or a list of such
+    --  elements. Passed on.
+    -- @param ... Passed on.
+    --
+    -- @usage
+    -- -- Alternative implementation of `elem_walk` using `elem_recurse`.
+    -- elem_walk = type_check('*', 'table')(
+    --     function (elem, filter)
+    --         local traverse = filter.traverse or 'topdown'
+    --         assert(traverse == 'bottomup' or traverse == 'topdown',
+    --                'meaningless traversal direction.')
+    --         local ets = {elem_type(elem)}
+    --         local et = ets[1]
+    --         if et then
+    --             if traverse == 'bottomup' then
+    --                 elem_recurse(et, elem_walk, elem, filter)
+    --             end
+    --             for i = 1, #ets do
+    --                 local func = filter[ets[i]]
+    --                 if func then
+    --                     local new = func(elem)
+    --                     if new ~= nil then elem = new end
+    --                 end
+    --             end
+    --             if traverse == 'topdown' then
+    --                 elem_recurse(et, elem_walk, elem, filter)
+    --             end
+    --         elseif type(elem) == 'table' then
+    --             elem_recurse(elem_walk, elem, filter)
+    --         end
+    --         return elem
+    --     end
+    -- )
+    --
+    -- @function elem_recurse
+    -- @fixme Not unit-tested.
+    -- @fixme Example is not unit-tested.
+    elem_recurse = type_check('string|function', 'function|table|userdata')(
+        function (...)
+            local n, et, func, elem
+            local t = type(...)
+            if t == 'string' then
+                et, func, elem = ...
+                n = 4
+            elseif t == 'function' then
+                func, elem = ...
+                et = assert(elem_type(elem))
+                n = 3
+            end
+            local walk_elem = walkers[et]
+            if walk_elem then
+                walk_elem(func, elem, select(n, ...))
+            elseif elem.content then
+                elem.content = func(elem.content, select(n, ...))
+            elseif type(elem) == 'table' then
+                walk_table(func, elem, select(n, ...))
+            end
         end
-        return elem
-    end
+    )
 
     --- Walk an AST element and apply a filter to matching elements.
     --
     -- <h3>Differences to Pandoc's Walkers:</h3>
     --
-    -- * The filter is applied to the given element itself.
-    -- * The AST is traversed bottom-up or top-down, but *not* typewise,
-    --   and matching elements are traversed, too.
-    -- * Support for the filter keywords 'Block', 'Inline', and 'AstElement',
-    --   which match any block, any inline, or *any* element respectively.
-    -- * Metadata fields and documents as a whole are traversed, too.
+    -- * The filter is applied to the given element itself,
+    --   as opposed to only to its children.
+    -- * The AST is traversed top-down (default) or bottom-up, *not* typewise.
+    -- * Matching elements are traversed, too.
+    -- * Documents as a whole and metadata fields are walked, too.
+    -- * Support for the type keywords 'Block', 'Inline', and 'AstElement',
+    --   which match block elements, inline elements, and *all* elements
+    --   respectively.
     --
     -- <h3>Direction of Traversal:</h3>
     --
@@ -2032,26 +2085,26 @@ do
     --
     -- The AST is traversed left-to-right either way.
     --
-    -- @caveats This function needs more testing.
+    -- @caveats
     --
-    -- @tparam pandoc.AstElement elem A Pandoc AST element.
+    -- * This function needs more testing.
+    -- * The filter can modify the AST *in-place*.
+    --
+    -- @tparam userdata|table elem A Pandoc AST element.
     -- @tparam {string=func,...} filter A filter.
     -- @return Typically, but not necessarily, a new Pandoc AST element.
     --
     -- @function elem_walk
-    elem_walk = type_check('*', 'table', '?table')(
-        function (elem, filter, _seen)
-            if not _seen then _seen = {} end
-            assert(not _seen[elem], 'cycle in data tree.')
+    elem_walk = type_check('*', 'table')(
+        function (elem, filter)
             local traverse = filter.traverse or 'topdown'
             assert(traverse == 'bottomup' or traverse == 'topdown',
-                   'the AST can only be traversed "bottomup" or "topdown".')
+                   'meaningless traversal direction.')
             local ets = {elem_type(elem)}
             local et = ets[1]
             if et then
-                _seen[elem] = true
                 if traverse == 'bottomup' then
-                    elem = recurse(elem, et, filter, _seen)
+                    elem_recurse(et, elem_walk, elem, filter)
                 end
                 for i = 1, #ets do
                     local func = filter[ets[i]]
@@ -2061,11 +2114,10 @@ do
                     end
                 end
                 if traverse == 'topdown' then
-                    elem = recurse(elem, et, filter, _seen)
+                    elem_recurse(et, elem_walk, elem, filter)
                 end
             elseif type(elem) == 'table' then
-                _seen[elem] = true
-                elem = walk_table(elem, filter, _seen)
+                walk_table(elem_walk, elem, filter)
             end
             return elem
         end
@@ -2078,8 +2130,52 @@ end
 
 do
     -- luacheck: ignore stringify
-    local pandoc_type = pandoc.utils.type
     local stringify = protect(stringify)
+
+    -- Custom assertion function.
+    local assert = asserter(vars_sub)
+
+    -- Determine whether a Pandoc metadata value is a list.
+    --
+    -- @param val A value.
+    -- @treturn boolean Whether the value is a list.
+    local is_list
+    if not pandoc.types or PANDOC_VERSION < {2, 17} then
+        function is_list (v)
+            local et = elem_type(v)
+            return et == 'MetaList' or (
+                    not et
+                and type(v) == 'table'
+                and select(2, keys(v)) == #v
+            )
+        end
+    else
+        function is_list (v)
+            local t = pandoc.utils.type(v)
+            return t == 'List' or (t == 'table' and select(2, keys(v)) == #v)
+        end
+    end
+
+    -- Determine whether a Pandoc metadata value is a mapping.
+    --
+    -- @param val A value.
+    -- @treturn boolean Whether the value is a mapping.
+    local is_map
+    if not pandoc.types or PANDOC_VERSION < {2, 17} then
+        function is_map (val)
+            local et = elem_type(val)
+            return et == 'MetaMap' or (
+                    not et
+                and type(val) == 'table'
+                and select(2, keys(val)) ~= #val
+            )
+        end
+    else
+        function is_map (val)
+            local t = pandoc.utils.type(val)
+            return t == 'table' and select(2, keys(val)) ~= #val
+        end
+    end
 
     -- A mapping of configuration value types to parers.
     local converters = {}
@@ -2094,27 +2190,38 @@ do
     -- @treturn[2] string An error message.
     -- @raise An error if a type declaration cannot be parsed.
     local function convert (val, decl)
-        if not decl then decl = 'string' end
+        if not decl or decl == '' then decl = 'string' end
+        local len = #decl
         local err
+        local pos = 1
         local n = 0
-        for t in decl:gmatch '[^|]+' do
-            if t ~= '' then
-                n = n + 1
-                local head, tail = t:match '^%s*(%l+)%s*<?%s*([%l<>%s]-)%s*>?%s*$'
-                if not head then error(decl .. ': cannot parse option type.', 3) end
-                local conv = converters[head]
-                if not conv then error(head .. ': no such option type.', 3) end
-                if val ~= nil then
-                    local result
-                    result, err = conv(val, tail or 'string')
-                    if result ~= nil then return result end
-                end
+        while pos <= len do
+            local head, tail, npos
+            head, npos = decl:match('^%s*(%a+)%s*()', pos)
+            assert(head, '${decl}: index ${pos}: expected word.')
+            pos = npos
+            tail, npos = decl:match('^%s*(%b<>)%s*()', pos)
+            if tail
+                then pos = npos
+                else tail = ''
+            end
+            if pos <= len then
+                pos = assert(
+                    decl:find('^|', pos),
+                    '${decl}: index ${pos}: expected "|".'
+                ) + 1
+            end
+            local conv = converters[head]
+            assert(conv, '${head}: no such option type.')
+            n = n + 1
+            if val ~= nil then
+                local result
+                result, err = conv(val, tail:sub(2, -2))
+                if result ~= nil then return result end
             end
         end
-        if n == 1 then return nil, err or format('not a %s.', decl) end
-        decl = decl:gsub('<(%a+)', ' of %1s'):gsub('>', ''):
-                    gsub('|', ' or '):gsub('%s+', ' ')
-        return nil, format('expected %s.', decl)
+        if n == 1 then return nil, err end
+        return nil, 'wrong type of value.'
     end
 
     -- Convert a value to a Lua boolean.
@@ -2133,7 +2240,7 @@ do
             elseif includes({'n', 'no', 'f', 'false'}, val) then return false
             end
         end
-        return nil, 'not a boolean value.'
+        return nil, 'expecting a boolean value.'
     end
 
     -- Convert a value to a Lua string.
@@ -2152,7 +2259,7 @@ do
             local str = stringify(val)
             if str ~= '' then return str end
         end
-        return nil, 'not a string or empty.'
+        return nil, 'expecting a string.'
     end
 
     -- Convert a value to a Lua number.
@@ -2166,7 +2273,7 @@ do
         if elem_type(val) then val = stringify(val) end
         local num = tonumber(val)
         if num then return num end
-        return nil, 'not a number.'
+        return nil, 'expecting a number.'
     end
 
     -- Convert values to a list.
@@ -2175,27 +2282,38 @@ do
     --
     -- @param val A value or a list of values.
     -- @treturn pandoc.List A list of values.
-    function converters.array (vals, decl)
-        if decl == '' then decl = 'string' end
-        if
-            -- Pandoc ≥ v2.17.
-            (pandoc_type and pandoc_type(vals) == 'List') or
-            -- Old versions of Pandoc.
-            elem_type(vals) == 'MetaList' or
-            -- Ancient versions of Pandoc, maybe.
-            (type(vals) == 'table' and select(2, keys(vals)) == #vals)
-        then
-            local list = pandoc.List:new()
+    function converters.list (vals, decl)
+        if is_list(vals) then
             for i = 1, #vals do
                 local v, err = convert(vals[i], decl)
                 if v == nil then return nil, format('item no. %d: %s', i, err) end
-                list[i] = v
+                vals[i] = v
             end
-            return list
+            return vals
         end
         local v, err = convert(vals, decl)
         if v == nil then return nil, err end
         return pandoc.List:new{v}
+    end
+
+    -- Convert values to a mapping.
+    --
+    -- Tables are passed through as is.
+    --
+    -- @param val A mapping.
+    -- @treturn[1] tab A mapping.
+    -- @treturn[2] nil `nil` if the value cannot be converted to a mapping.
+    -- @treturn[2] string An error message.
+    function converters.map (vals, decl)
+        if is_map then
+            for k, v in pairs(vals) do
+                local n, err = convert(v, decl)
+                if n == nil then return nil, k .. ': ' .. err end
+                vals[k] = n
+            end
+            return vals
+        end
+        return nil, 'expecting a mapping.'
     end
 
     --- An option list.
@@ -2250,11 +2368,11 @@ do
     -- @see Options:parse
     -- @function Options:add
     Options.add = type_check('table', {
-        name = 'string',
+        field = 'string',
+        name = '?string',
         type = '?string',
         parse = '?function',
-        prefix = '?string'},
-    '...')(
+    }, '...')(
         function (self, ...)
             local opts = pack(...)
             for i = 1, opts.n do
@@ -2273,29 +2391,41 @@ do
     -- @treturn[2] string An error message.
     --
     -- @usage
-    -- > meta = pandoc.MetaMap{
-    -- >     ['foo-bar'] = pandoc.MetaInlines(pandoc.List{
-    -- >         pandoc.Str "0123"
-    -- >     })
+    -- > doc = pandoc.read [[[---
+    -- > foo-bar: [1, 2, 3]
+    -- > ...]]]
     -- > parser = Options()
     -- > parser:add{
-    -- >     name = 'bar',
-    -- >     prefix = 'foo',
-    -- >     type = 'number',
-    -- >     parse = function (x)
-    -- >         if x < 1 then return nil, 'not a positive number.' end
-    -- >         return x
+    -- >     field = 'foo-bar',
+    -- >     type = 'list<number>',
+    -- >     parse = function (numbers)
+    -- >         for _, n in ipairs(numbers) do
+    -- >            if n < 1 then
+    -- >                return nil, n .. ': not a positive number.'
+    -- >            end
+    -- >         end
+    -- >         return numbers
     -- >     end
     -- > }
-    -- > opts = parser:parse(meta)
-    -- > opts.bar
-    -- 123
-    -- > type(opts.bar)
-    -- number
+    -- > opts = parser:parse(doc.meta)
+    -- > table.unpack(opts.foo_bar)
+    -- 1    2    3
+    -- > doc = pandoc.read [[[---
+    -- > foo-bar: 1
+    -- > ...]]]
+    -- > opts = parser:parse(doc.meta)
+    -- > table.unpack(opts.foo_bar)
+    -- 1
+    -- > doc = pandoc.read [[[---
+    -- > foo-bar: [1, NaN, 2]
+    -- > ...]]]
+    -- > parse:parse(doc.meta)
+    -- nil    foo-bar: item no. 2: expecting a number.
     --
     -- @see opts_parse
     -- @see Options:add
     -- @function Options:parse
+    -- @fixme New example is not unit-tested.
     Options.parse = type_check('table', 'table|userdata')(
         function (self, meta)
             return opts_parse(meta, unpack(self))
@@ -2308,48 +2438,40 @@ do
     --
     -- An option definition is a table with the following keys:
     --
-    --  * `name`: (***@{string}***) An option name.
+    --  * `field`: (***@{string}***) A metadata field name.
+    --  * `name`: (***@{string}***) An option name. (*optional*)
     --  * `type`: (***@{string}***) An option type. (*default* 'string')
     --  * `parse`: (***func***) A parser. (*optional*)
-    --  * `prefix`: (***@{string}***) A prefix. (*optional*)
     --
-    -- <h3>Mapping of Option Names to Metadata Fieldnames:</h3>
-    --
-    -- The name of the metadata field is the name of the option with
-    -- underscores replaced by dashes. If the option has a prefix,
-    -- then the fieldname is prefixed with that prefix and a dash *after*
-    -- underscores have been replaced with dashes.
-    --
-    -- In Lua:
-    --
-    --    fieldname = name:gsub('_', '-')
-    --    if prefix then fieldname = prefix .. '-' .. fieldname end
+    -- The option is read from the given metadata field and stored in a table
+    -- under the given name. If that name is ommitted, it is derrived from the
+    -- metadata fieldname by replacing hyphens ('-') with underscores ('_').
     --
     -- <h3>Type Declaration Grammar:</h3>
     --
-    -- Configuration values can be of any of four types:
+    -- Configuration values can be of any of five types:
     --
     -- * 'boolean'
     -- * 'number'
     -- * 'string'
-    -- * 'array'
+    -- * 'list'
+    -- * 'map'
     --
-    -- If an option is declared to be of one of the scalar types 'boolean',
-    -- 'number', or 'string', then its value is required to be of the Lua
-    -- type of the same name *or* convertible to that type; if an option is
-    -- declared as 'boolean', the strings 'true', 't', 'yes' and 'y' are
-    -- converted to `true`, and 'false', 'f', 'no' and 'n' to `false`
-    -- (case is ignored).
+    -- If an option is declared to be of one of the types 'boolean', 'number',
+    -- or 'string', then its value is required to be of the Lua type of the
+    -- same name *or* convertible to that type; the strings 'true', 't', 'yes'
+    -- and 'y' are converted to `true`, and 'false', 'f', 'no' and 'n' to
+    -- `false` for boolean values (case is ignored).
     --
-    -- If an option is declared to be an 'array', its value is required to be
-    -- of the Pandoc type `pandoc.List` or convertible to that type. However,
-    -- if a scalar value is encountered where an array is expected, the value
-    -- is wrapped in a single-item list automatically.
-    --
-    -- Items in an array must all be of the same type. That type is declared
-    -- by appending '<*T*>' to 'array', where *T* is either the name of a
-    -- scalar type or another array declaration (e.g., 'array<number>');
-    -- *T* defaults to 'string'.
+    -- If an option is declared to be a 'list', its value is required to be
+    -- a Lua table representing a sequence or a `pandoc.List`; however, if a
+    -- non-list value is encountered where a list is expected, the value is
+    -- wrapped in a single-item list automatically. If an option is declared
+    -- to be a 'map', its value is required to be a Lua table that does *not*
+    -- represent a sequence or a `pandoc.MetaMap`. The items in a list or in
+    -- a mapping must all be of the same type which is declared by appending
+    -- '<*T*>' to the declaration, where *T* is the name of that type and
+    -- defaults to 'string'.
     --
     -- An option can be declared to be of any of a list of types by listing
     -- multiple type names separated by a pipe symbol ('|'), for example,
@@ -2359,11 +2481,9 @@ do
     --
     -- In [Extended Backus-Naur Form](https://en.wikipedia.org/wiki/EBNF):
     --
-    -- > Scalar = 'boolean' | 'number' | 'string'
-    -- >
-    -- > Array = 'array', [ '<', ( scalar | array ), '>' ]
-    -- >
-    -- > Type = scalar | array
+    -- > Type = 'boolean' | 'number' | 'string' |
+    -- >        'list', [ '<', type, '>' ] |
+    -- >        'map', [ '<', type, '>' ]
     -- >
     -- > Type list = type, { '|', type }
     --
@@ -2372,14 +2492,13 @@ do
     -- <h3>Parse Protocol:</h3>
     --
     -- Parsers are given the converted value and should return
-    -- either a new value or `nil` and an error message.
-    --
-    -- Parsers are *not* invoked for `nil`.
+    -- either a new value or `nil` and an error message. They
+    -- are *not* invoked for `nil`.
     --
     -- @caveats
     --
     -- @{Options:add} throws an error if it is given a wrong option type
-    -- (e.g., 'int' or 'array[number]'). `opts_parse` accepts wrong option
+    -- (e.g., 'int' or 'list[number]'). `opts_parse` accepts wrong option
     -- types and only throws an error if it encounters an option that is
     -- supposed to be of that type.
     --
@@ -2388,52 +2507,61 @@ do
     -- @treturn tab A mapping of option names to values.
     --
     -- @usage
-    -- > meta = pandoc.MetaMap{
-    -- >     ['foo-bar'] = pandoc.MetaInlines(pandoc.List{
-    -- >         pandoc.Str "0123"
-    -- >     })
-    -- > opts = opts_parse(meta, {
-    -- >     name = 'bar',
-    -- >     prefix = 'foo',
-    -- >     type = 'number',
-    -- >     parse = function (x)
-    -- >         if x < 1 then return nil, 'not a positive number.' end
-    -- >         return x
+    -- > doc = pandoc.read [[[---
+    -- > foo-bar: [1, 2, 3]
+    -- > ...]]]
+    -- > opt_def = {
+    -- >     field = 'foo-bar',
+    -- >     type = 'list<number>',
+    -- >     parse = function (numbers)
+    -- >         for _, n in ipairs(numbers) do
+    -- >            if n < 1 then
+    -- >                return nil, n .. ': not a positive number.'
+    -- >            end
+    -- >         end
+    -- >         return numbers
     -- >     end
-    -- > })
-    -- > opts.bar
-    -- 123
-    -- > type(opts.bar)
-    -- number
+    -- > }
+    -- > opts = opts_parse(doc.meta, opt_def)
+    -- > table.unpack(opts.foo_bar)
+    -- 1    2    3
+    -- > doc = pandoc.read [[[---
+    -- > foo-bar: 1
+    -- > ...]]]
+    -- > opts = opts_parse(doc.meta, opt_def)
+    -- > table.unpack(opts.foo_bar)
+    -- 1
+    -- > doc = pandoc.read [[[---
+    -- > foo-bar: [1, NaN, 2]
+    -- > ...]]]
+    -- > opts_parse(doc.meta, opt_def)
+    -- nil    foo-bar: item no. 2: expecting a number.
     --
     -- @see Options
     -- @function opts_parse
-    -- @todo Add type 'dict'.
+    -- @fixme 'map' is not well unit-tested.
     opts_parse = type_check('table|userdata', {
-        name = 'string',
+        field = 'string',
+        name = '?string',
         type = '?string',
         parse = '?function',
         prefix = '?string'
     }, '...')(
         function (meta, ...)
             local opts = {}
-            local defs = pack(...)
-            if not meta or defs.n == 0 then return opts end
-            for i = 1, defs.n do
-                local def = defs[i]
-                local key = def.name:gsub('_', '-')
-                if def.prefix then key = def.prefix .. '-' .. key end
-                local val = meta[key]
+            if not meta then return opts end
+            for _, def in ipairs {...} do
+                local field = def.field
+                local name = def.name or field:gsub('%-', '_')
+                local val = meta[field]
                 if val ~= nil then
-                    local err
-                    for _, func in pairs{convert, def.parse} do
+                    for _, func in ipairs {convert, def.parse} do
                         if not func then break end
+                        local err
                         val, err = func(val, def.type)
-                        if val == nil then
-                            return nil, key .. ': ' .. err
-                        end
+                        if val == nil then return nil, field .. ': ' .. err end
                     end
-                    opts[def.name] = val
+                    opts[name] = val
                 end
             end
             return opts

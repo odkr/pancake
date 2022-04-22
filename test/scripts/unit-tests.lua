@@ -76,6 +76,7 @@ local MetaMap = pandoc.MetaMap
 local Null = pandoc.Null
 local Pandoc = pandoc.Pandoc
 local Para = pandoc.Para
+local Space = pandoc.Space
 local Str = pandoc.Str
 local Strong = pandoc.Strong
 
@@ -377,24 +378,24 @@ function test_asserter ()
     assert_error_msg_matches('^foo$', assert, false, 'foo')
 
     local function msgh () return 'bar' end
-    assert = M.asserter(nil, msgh)
+    assert = M.asserter(msgh)
     assert_true(pcall(assert, true))
     assert_error_msg_matches('^bar$', assert, false, 'foo')
 
     local var = false
     local function fin () var = true end
-    assert = M.asserter(fin)
+    assert = M.asserter(nil, fin)
     assert_true(pcall(assert, true))
     assert_error_msg_matches('^foo$', assert, false, 'foo')
     assert_true(var)
 
     var = false
-    assert = M.asserter(fin, msgh)
+    assert = M.asserter(msgh, fin)
     assert_true(pcall(assert, true))
     assert_error_msg_matches('^bar$', assert, false, 'foo')
     assert_true(var)
 
-    local assert = M.asserter(nil, M.vars_sub)
+    local assert = M.asserter(M.vars_sub)
     local function foo ()
         -- luacheck: ignore bar
         local bar = 'The bar'
@@ -1473,13 +1474,13 @@ function test_elem_type ()
         [read_md_file(M.path_join(DATA_DIR, 'foo.md'))] = {'Pandoc', n = 1},
         [List{Str ''}] = {'Inlines', n = 1},
         [{Para{Str ''}}] = {'Blocks', n = 1},
-        [List{Para{Str ''}, Header(1, {Str 'x'})}] = {'Blocks', n = 1}
+        [List{Para{Str ''}, Header(1, {Str 'x'})}] = {'Blocks', n = 1},
     }
 
-    if pandoc.types and PANDOC_VERSION >= {2, 17} then -- ?
-        tests[pandoc.MetaInlines{Str ''}] = {'Inlines', n = 1}
+    if pandoc.types and PANDOC_VERSION >= {2, 17} then
+        tests[MetaInlines{Str ''}] = {'Inlines', n = 1}
     else
-        tests[pandoc.MetaInlines{Str ''}] =
+        tests[MetaInlines{Str ''}] =
             {'MetaInlines', 'Meta', 'AstElement', n = 3}
     end
 
@@ -1520,7 +1521,7 @@ Quoting a list:
 
     -- Test erroneous arguments.
     assert_error_msg_matches(
-        '.-%f[%a]the AST can only be traversed "bottomup" or "topdown".',
+        '.-%f[%a]meaningless traversal direction.',
         M.elem_walk, doc, {
             AstElement = id,
             traverse = true
@@ -1592,6 +1593,30 @@ Quoting a list:
         assert_str_matches(stringify(walked), '^%s*$')
     end
 
+    local input = pandoc.read [[
+* [foo]{.foo} [foo]{.foo}
+* [foo]{.foo} [foo]{.foo}
+]]
+    local output = pandoc.read [[
+* [bar]{.foo} [bar]{.foo}
+* [bar]{.foo} [bar]{.foo}
+]]
+
+    assert_items_equals(M.elem_walk(input, {
+        Str = function (str)
+            return Str(stringify(str):gsub('foo', 'bar'))
+        end
+    }), output)
+
+    input = pandoc.read [[a b c]]
+    output = pandoc.read [[1 2 3]]
+
+    assert_items_equals(M.elem_walk(input, {
+        Inlines = function (_)
+            return List:new{Str '1', Space(), Str '2', Space(), Str '3'}
+        end
+    }), output)
+
     local function barify_inline (str)
         return Str(str.text:gsub('foo', 'bar'))
     end
@@ -1662,20 +1687,22 @@ function test_options_add ()
     local opts = M.Options()
 
     for pattern, input in pairs {
-        ['foo@bar!: cannot parse option type.'] =
-            {name = 'err_type_syntax', type = 'foo@bar!'},
+        ['number@string: index 7: expected "|"%.'] =
+            {field = 'err-type-syntax', type = 'number@string'},
+        ['number||string: index 8: expected word%.'] =
+            {field = 'err-type-syntax', type = 'number||string'},
         ['int: no such option type.'] =
-            {name = 'err_type_syntax', type = 'int'},
+            {field = 'err-type-syntax', type = 'int'},
     } do
         assert_error_msg_matches(pattern, opts.add, opts, input)
     end
 
-    opts:add{name = 'test'}
-    assert_equals(opts[1].name, 'test')
+    opts:add{field = 'test'}
+    assert_equals(opts[1].field, 'test')
 
     opts = M.Options()
     opts:add{
-        name = 'bar',
+        field = 'bar',
         type = 'number',
         parse = function (x)
             if x < 1 then return nil, 'not a positive number.' end
@@ -1720,12 +1747,21 @@ do
         ['list-num-1'] = List:new{MetaInlines{Str '1'}, MetaInlines{Str '2'}},
         ['list-num-2'] = MetaInlines{Str '1'},
         ['list-num-3'] = List:new{},
+        ['pre-list-num-4'] = List:new{MetaInlines{Str '1'}, MetaInlines{Str '2'}},
+        ['pre-list-num-5'] = MetaInlines{Str '1'},
         ['str'] =  MetaInlines{Str '1'},
         ['list-str-1'] =  List:new{MetaInlines{Str '1'}, MetaInlines{Str '2'}},
         ['list-str-2'] =  MetaInlines{Str '1'},
         ['list-list-1'] = List:new{List:new{MetaInlines{Str '1'}}},
         ['list-list-2'] = List:new{MetaInlines{Str '1'}},
         ['list-list-3'] = MetaInlines{Str '1'},
+        ['map-str-1'] = MetaMap{foo = MetaInlines{Str 'bar'}},
+        ['map-alt-1'] = MetaMap{foo = MetaInlines{Str 'bar'}},
+        ['map-alt-2'] = MetaMap{
+            foo = List:new{
+                MetaInlines{Str 'bar'}, MetaInlines{Str 'baz'}
+            }
+        },
         ['alt-1'] = 'foo',
         ['alt-2'] = 1,
         ['alt-3'] = {1},
@@ -1735,40 +1771,42 @@ do
     local function make_options_parse_test (func)
         return function ()
             for pattern, input in pairs {
-                ['foo@bar!: cannot parse option type.'] =
-                    {name = 'err_type_syntax', type = 'foo@bar!'},
+                ['.-%f[%a]string!: index 7: expected "|"%.'] =
+                    {field = 'err-type-syntax', type = 'string!'},
+                ['.-%f[%a]number|@bar: index 8: expected word%.'] =
+                    {field = 'err-type-syntax', type = 'number|@bar'},
                 ['int: no such option type.'] =
-                    {name = 'err_type_syntax', type = 'int'},
+                    {field = 'err-type-syntax', type = 'int'},
             } do
                 assert_error_msg_matches(pattern, func, {input}, meta)
             end
 
             for msg, input in pairs {
-                ['err-nab: not a boolean value.'] =
-                    {name = 'err_nab', type = 'boolean'},
-                ['err-nan: not a number.'] =
-                    {name = 'err_nan', type = 'number'},
-                ['err-list-nan-1: item no. 1: not a number.'] =
-                    {name = 'err_list_nan-1', type = 'array<number>'},
-                ['err-list-nan-2: item no. 2: not a number.'] =
-                    {name = 'err_list_nan-2', type = 'array<number>'},
-                ['err-list-nan-3: not a number.'] =
-                    {name = 'err-list-nan-3', type = 'number'},
-                ['pre-err-nan: not a number.'] =
-                    {prefix = 'pre', name = 'err_nan', type = 'number'},
-                ['pre-err-list-nan-3: not a number.'] =
-                    {prefix = 'pre', name = 'err-list-nan-3', type = 'number'},
+                ['err-nab: expecting a boolean value.'] =
+                    {field = 'err-nab', type = 'boolean'},
+                ['err-nan: expecting a number.'] =
+                    {field = 'err-nan', type = 'number'},
+                ['err-list-nan-1: item no. 1: expecting a number.'] =
+                    {field = 'err-list-nan-1', type = 'list<number>'},
+                ['err-list-nan-2: item no. 2: expecting a number.'] =
+                    {field = 'err-list-nan-2', type = 'list<number>'},
+                ['err-list-nan-3: expecting a number.'] =
+                    {field = 'err-list-nan-3', type = 'number'},
+                ['pre-err-nan: expecting a number.'] =
+                    {field = 'pre-err-nan', name = 'err_nan', type = 'number'},
+                ['pre-err-list-nan-3: expecting a number.'] =
+                    {field = 'pre-err-list-nan-3', name = 'err_list_nan_3', type = 'number'},
                 ['num: foo'] = {
-                    name = 'num', type = 'number', parse = function ()
+                    field = 'num', type = 'number', parse = function ()
                         return nil, 'foo'
                     end
                 },
-                ['err-alt-1: expected array of arrays of numbers or string.'] =
-                    {name = 'err_alt_1', type = 'array<array<number>>|string'},
-                ['err-alt-2: expected array of arrays of numbers or string.'] =
-                    {name = 'err_alt_2', type = 'array<array<number>>|string'},
-                ['err-alt-3: expected array of arrays of numbers or string.'] =
-                    {name = 'err_alt_3', type = 'array<array<number>>|string'}
+                ['err-alt-1: wrong type of value.'] =
+                    {field = 'err-alt-1', type = 'list<list<number>>|string'},
+                ['err-alt-2: wrong type of value.'] =
+                    {field = 'err-alt-2', type = 'list<list<number>>|string'},
+                ['err-alt-3: wrong type of value.'] =
+                    {field = 'err-alt-3', type = 'list<list<number>>|string'}
             } do
                 local ok, err = func({input}, meta)
                 assert_nil(ok)
@@ -1776,41 +1814,48 @@ do
             end
 
             local opts = M.Options(
-                {name = 'num', type = 'number'},
-                {name = 'bool-1', type = 'boolean'},
-                {name = 'bool-2', type = 'boolean'},
-                {name = 'bool-3', type = 'boolean'},
-                {name = 'bool-4', type = 'boolean'},
-                {name = 'bool-5', type = 'boolean'},
-                {name = 'bool-6', type = 'boolean'},
-                {name = 'bool-7', type = 'boolean'},
-                {name = 'bool-8', type = 'boolean'},
-                {name = 'bool-9', type = 'boolean'},
-                {name = 'bool-10', type = 'boolean'},
-                {name = 'bool-11', type = 'boolean'},
-                {name = 'num_str_1', type = 'number'},
-                {prefix = 'pre', name = 'num_str_2', type = 'number'},
-                {name = 'list_bool_1', type = 'array<boolean>'},
-                {name = 'list_bool_2', type = 'array<boolean>'},
-                {name = 'list_num_1', type = 'array<number>'},
-                {name = 'list_num_2', type = 'array<number>'},
-                {name = 'list_num_3', type = 'array<number>'},
-                {name = 'str'},
-                {name = 'list_str_1', type = 'array<string>'},
-                {name = 'list_str_2', type = 'array'},
-                {name = 'list_list_1', type = 'array<array<number>>'},
-                {name = 'list_list_2', type = 'array<array<number>>'},
-                {name = 'list_list_3', type = 'array<array<number>>'},
-                {name = 'add', type = 'number', parse = function (n)
+                {field = 'num', type = 'number'},
+                {field = 'bool-1', type = 'boolean'},
+                {field = 'bool-2', type = 'boolean'},
+                {field = 'bool-3', type = 'boolean'},
+                {field = 'bool-4', type = 'boolean'},
+                {field = 'bool-5', type = 'boolean'},
+                {field = 'bool-6', type = 'boolean'},
+                {field = 'bool-7', type = 'boolean'},
+                {field = 'bool-8', type = 'boolean'},
+                {field = 'bool-9', type = 'boolean'},
+                {field = 'bool-10', type = 'boolean'},
+                {field = 'bool-11', type = 'boolean'},
+                {field = 'num-str-1', type = 'number'},
+                {field = 'pre-num-str-2', name = 'num_str_2', type = 'number'},
+                {field = 'list-bool-1', type = 'list<boolean>'},
+                {field = 'list-bool-2', type = 'list<boolean>'},
+                {field = 'list-num-1', type = 'list<number>'},
+                {field = 'list-num-2', type = 'list<number>'},
+                {field = 'list-num-3', type = 'list<number>'},
+                {field = 'pre-list-num-4', name = 'list_num_4', type = 'list<number>'},
+                {field = 'pre-list-num-5', name = 'list_num_5', type = 'list<number>'},
+                {field = 'str'},
+                {field = 'list-str-1', type = 'list<string>'},
+                {field = 'list-str-2', type = 'list'},
+                {field = 'list-list-1', type = 'list<list<number>>'},
+                {field = 'list-list-2', type = 'list<list<number>>'},
+                {field = 'list-list-3', type = 'list<list<number>>'},
+                {field = 'map-str-1', type = 'map'},
+                {field = 'map-alt-1', type = 'map<list|string>'},
+                {field = 'map-alt-2', type = 'map<list|string>'},
+                {field = 'add', type = 'number', parse = function (n)
                     return n + 1
                 end},
-                {name = 'alt-1', type = 'array<array<number>>|array<number>|string'},
-                {name = 'alt-2', type = 'array<array<number>>|array<number>|string'},
-                {name = 'alt-3', type = 'array<array<number>>|array<number>|string'},
-                {name = 'alt-4', type = 'array<array<number>>|array<number>|string'}
+                {field = 'alt-1', type = 'list<list<number>>|list<number>|string'},
+                {field = 'alt-2', type = 'list<list<number>>|list<number>|string'},
+                {field = 'alt-3', type = 'list<list<number>>|list<number>|string'},
+                {field = 'alt-4', type = 'list<list<number>>|list<number>|string'}
             )
 
-            assert_items_equals(func(opts, meta), {
+            local result, err = func(opts, meta)
+            assert_nil(err)
+            assert_items_equals(result, {
                 num = 3,
                 bool_1 = true,
                 bool_2 = false,
@@ -1830,12 +1875,17 @@ do
                 list_num_1 = {1, 2},
                 list_num_2 = {1},
                 list_num_3 = {},
+                list_num_4 = {1, 2},
+                list_num_5 = {1},
                 str = '1',
                 list_str_1 = {'1', '2'},
                 list_str_2 = {'1'},
                 list_list_1 = {{1}},
                 list_list_2 = {{1}},
                 list_list_3 = {{1}},
+                map_str_1 = {foo = 'bar'},
+                map_alt_1 = {foo = {'bar'}},
+                map_alt_2 = {foo = {'bar', 'baz'}},
                 add = 1,
                 alt_1 = 'foo',
                 alt_2 = {{1}},
