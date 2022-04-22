@@ -132,7 +132,7 @@ then
 		[ -e "$rock" ] || panic '%s: no such file.' "$rock"
 		warn -e "$SMSO" 'verifying rock ...'
 		unzip -q "$rock" -d rock
-		diff -qr -X "$REPO/.gitignore" -x 'TODO.md' -x '.*' -x test \
+		diff -qr -X "$REPO/.gitignore" -x '.*' -x test \
 		     "rock/$name" "$REPO" ||
 			panic 'rock differs from local repository.'
 		warn -e "$SMSO" 'uploading rock ...'
